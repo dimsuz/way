@@ -8,11 +8,25 @@ data class LoginFlowState(
   val timer: Long = 0,
 )
 
+enum class LoginFlowResult {
+  Success,
+  Dismissed
+}
+
+data class PermissionsFlowState(
+  val allGranted: Boolean = false,
+)
+
+enum class PermissionFlowResult {
+  Success,
+  Dismissed
+}
+
 @JvmInline
 value class UserId(val value: String)
 
 fun main() {
-  val loginFlow = FlowBuilder<LoginFlowState, UserId>(NodeId("login"))
+  val loginFlow = FlowBuilder<LoginFlowState, UserId, LoginFlowResult>(NodeId("login"))
     .onEntry {
       updateState { s -> s.copy(onEntryCalled = true) }
     }
@@ -26,6 +40,9 @@ fun main() {
         .on(Event("CANT_LOGIN_REQUESTED")) {
           navigateTo(NodeId("cant_login"))
         }
+        .on(Event("FINGERPRINT_SET")) {
+          navigateTo(NodeId("permissions"))
+        }
         .on(Event("GENERIC_EVENT")) {
           println("doing some generic side effect (printing stuff) and nothing more")
         }
@@ -33,7 +50,21 @@ fun main() {
           updateState { s -> s.copy(timer = 33) }
         }
         .on(Event.BACK) {
-          finish()
+          finish(LoginFlowResult.Dismissed)
+        }
+        .build()
+    }
+    .addFlow<PermissionFlowResult> { subFlowBuilder ->
+      subFlowBuilder
+        .of(
+          FlowBuilder<PermissionsFlowState, Unit, PermissionFlowResult>(NodeId("permissions"))
+            .build(PermissionsFlowState())
+        )
+        .onResult(PermissionFlowResult.Success) {
+          finish(LoginFlowResult.Success)
+        }
+        .onResult(PermissionFlowResult.Dismissed) {
+          finish(LoginFlowResult.Dismissed)
         }
         .build()
     }
