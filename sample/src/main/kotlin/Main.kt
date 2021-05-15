@@ -26,7 +26,7 @@ enum class PermissionFlowResult {
 value class UserId(val value: String)
 
 fun main() {
-  val loginFlow = FlowBuilder<LoginFlowState, UserId, LoginFlowResult>(NodeId("login"))
+  val loginFlow = FlowBuilder<LoginFlowState, UserId, LoginFlowResult>()
     .onEntry {
       updateState { s -> s.copy(onEntryCalled = true) }
     }
@@ -54,17 +54,17 @@ fun main() {
         }
         .build()
     }
-    .addFlow<PermissionFlowResult> { subFlowBuilder ->
+    .addSubFlow<PermissionFlowResult>(NodeId("login_flow")) { subFlowBuilder ->
       subFlowBuilder
         .of(
-          FlowBuilder<PermissionsFlowState, Unit, PermissionFlowResult>(NodeId("permissions"))
+          FlowBuilder<PermissionsFlowState, Unit, PermissionFlowResult>()
             .build(PermissionsFlowState())
         )
-        .onResult(PermissionFlowResult.Success) {
-          finish(LoginFlowResult.Success)
-        }
-        .onResult(PermissionFlowResult.Dismissed) {
-          finish(LoginFlowResult.Dismissed)
+        .onResult {
+          when (result) {
+            PermissionFlowResult.Success -> finish(LoginFlowResult.Success)
+            PermissionFlowResult.Dismissed -> finish(LoginFlowResult.Dismissed)
+          }
         }
         .build()
     }

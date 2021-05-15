@@ -15,6 +15,10 @@ interface TransitionEnv<S : Any, A : Any, R : Any> : ActionEnv<S, A> {
   fun finish(result: R)
 }
 
+interface ResultTransitionEnv<S : Any, A : Any, R : Any, SR : Any> : TransitionEnv<S, A, R> {
+  val result: SR
+}
+
 @JvmInline
 value class Event(val name: String) {
   companion object {
@@ -34,7 +38,7 @@ interface Flow<S : Any, A : Any, R : Any> {
 
 interface Screen
 
-class FlowBuilder<S : Any, A : Any, R : Any>(val nodeId: NodeId) {
+class FlowBuilder<S : Any, A : Any, R : Any> {
   fun onEntry(action: ActionEnv<S, A>.() -> Unit): FlowBuilder<S, A, R> {
     return this
   }
@@ -51,11 +55,7 @@ class FlowBuilder<S : Any, A : Any, R : Any>(val nodeId: NodeId) {
     return this
   }
 
-//  fun addFlow(buildAction: (state: S, args: A) -> Flow<*, *, *>): FlowBuilder<S, A, R> {
-//    return this
-//  }
-
-  fun <SR : Any> addFlow(buildAction: (subFlowBuilder: SubFlowBuilder<S, A, R, SR>) -> Flow<*, *, SR>): FlowBuilder<S, A, R> {
+  fun <SR : Any> addSubFlow(nodeId: NodeId, buildAction: (subFlowBuilder: SubFlowBuilder<S, A, R, SR>) -> Flow<*, *, SR>): FlowBuilder<S, A, R> {
     return this
   }
 
@@ -67,12 +67,23 @@ class FlowBuilder<S : Any, A : Any, R : Any>(val nodeId: NodeId) {
   }
 }
 
+class Builder {
+  fun <R> build(action: (R) -> R): Builder = this
+}
+
+fun main() {
+  val value = 3
+  Builder()
+    .build { value } // not enough information to infer type variable R
+}
+
+
 class SubFlowBuilder<S : Any, A : Any, R : Any, SR : Any> {
   fun of(flow: Flow<*, *, SR>): SubFlowBuilder<S, A, R, SR> {
     return this
   }
 
-  fun onResult(result: SR, transition: TransitionEnv<S, A, R>.() -> Unit): SubFlowBuilder<S, A, R, SR> {
+  fun onResult(transition: ResultTransitionEnv<S, A, R, SR>.() -> Unit): SubFlowBuilder<S, A, R, SR> {
     return this
   }
 
