@@ -1,5 +1,5 @@
 import ru.dimsuz.way.Event
-import ru.dimsuz.way.FlowBuilder
+import ru.dimsuz.way.FlowNodeBuilder
 import ru.dimsuz.way.NodeId
 
 data class LoginFlowState(
@@ -26,14 +26,14 @@ enum class PermissionFlowResult {
 value class UserId(val value: String)
 
 fun main() {
-  val loginFlow = FlowBuilder<LoginFlowState, UserId, LoginFlowResult>()
+  val loginFlow = FlowNodeBuilder<LoginFlowState, UserId, LoginFlowResult>()
     .onEntry {
       updateState { s -> s.copy(onEntryCalled = true) }
     }
     .onExit {
       updateState { s -> s.copy(isDisposed = true) }
     }
-    .addScreen(NodeId("login_by_phone")) { screenBuilder ->
+    .addScreenNode(NodeId("login_by_phone")) { screenBuilder ->
       screenBuilder
         .onEntry { println("entered $path") }
         .onExit { println("exited $path") }
@@ -54,10 +54,10 @@ fun main() {
         }
         .build()
     }
-    .addSubFlow<PermissionFlowResult>(NodeId("login_flow")) { subFlowBuilder ->
+    .addFlowNode<PermissionFlowResult>(NodeId("login_flow")) { subFlowBuilder ->
       subFlowBuilder
         .of(
-          FlowBuilder<PermissionsFlowState, Unit, PermissionFlowResult>()
+          FlowNodeBuilder<PermissionsFlowState, Unit, PermissionFlowResult>()
             .build(PermissionsFlowState())
         )
         .onResult {
