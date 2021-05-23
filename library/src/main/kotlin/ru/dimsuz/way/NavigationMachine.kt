@@ -8,6 +8,6 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     }
 
   fun transition(node: NodeId, event: Event): NodeId {
-    return NodeId("test")
+    return initialNode
   }
 }

@@ -1,3 +1,5 @@
 package ru.dimsuz.way
 
-interface ScreenNode
+data class ScreenNode(
+  val eventTransitions: Map<Event, TransitionEnv<*, *, *>>
+)

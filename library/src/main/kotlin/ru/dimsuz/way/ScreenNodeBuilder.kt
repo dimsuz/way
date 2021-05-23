@@ -15,7 +15,8 @@ interface ScreenNodeBuilder<S : Any, A : Any, R : Any> {
   }
 
   fun build(): ScreenNode {
-    return object : ScreenNode {
-    }
+    return ScreenNode(
+      eventTransitions = emptyMap()
+    )
   }
 }
