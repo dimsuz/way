@@ -1,3 +1,4 @@
+import com.github.michaelbull.result.unwrap
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.FlowNodeBuilder
 import ru.dimsuz.way.NodeId
@@ -59,6 +60,7 @@ fun main() {
         .of(
           FlowNodeBuilder<PermissionsFlowState, Unit, PermissionFlowResult>()
             .build(PermissionsFlowState())
+            .unwrap()
         )
         .onResult {
           when (result) {
