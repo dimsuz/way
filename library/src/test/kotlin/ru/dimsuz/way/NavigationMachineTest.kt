@@ -13,7 +13,7 @@ class NavigationMachineTest : ShouldSpec({
     should("report error if initial state is missing") {
       val screen = Arb.nodeId().next()
       val node = FlowNodeBuilder<Unit, Unit, Unit>()
-        .addScreenNode(screen) { builder ->  builder.build() }
+        .addScreenNode(screen) { builder -> builder.build() }
         .build(Unit)
 
       node.getError() shouldBe FlowNodeBuilder.Error.MissingInitialNode
@@ -23,7 +23,7 @@ class NavigationMachineTest : ShouldSpec({
       val screen = Arb.nodeId().next()
       val node = FlowNodeBuilder<Unit, Unit, Unit>()
         .setInitial(screen)
-        .addScreenNode(screen) { builder ->  builder.build() }
+        .addScreenNode(screen) { builder -> builder.build() }
         .build(Unit)
         .unwrap()
 
@@ -37,7 +37,7 @@ class NavigationMachineTest : ShouldSpec({
     should("perform simple transition") {
       val screen = Arb.nodeId().next()
       val node = FlowNodeBuilder<Unit, Unit, Unit>()
-        .addScreenNode(screen) { builder ->  builder.build() }
+        .addScreenNode(screen) { builder -> builder.build() }
         .build(Unit)
 
       node.getError() shouldBe FlowNodeBuilder.Error.MissingInitialNode
