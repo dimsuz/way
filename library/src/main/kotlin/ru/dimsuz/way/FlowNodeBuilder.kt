@@ -1,5 +1,9 @@
 package ru.dimsuz.way
 
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.binding
+import com.github.michaelbull.result.toResultOr
+
 interface ActionEnv<S : Any, A : Any> {
   val args: A
   val state: S
@@ -32,11 +36,23 @@ value class NodeId(val id: String)
 @JvmInline
 value class Path(val segments: List<NodeId>)
 
-interface FlowNode<S : Any, A : Any, R : Any>
+data class FlowNode<S : Any, A : Any, R : Any>(
+  val initial: NodeId,
+)
+
+internal data class FlowNodeDraft<S : Any, A : Any, R : Any>(
+  var initial: NodeId? = null,
+)
 
 interface ScreenNode
 
 class FlowNodeBuilder<S : Any, A : Any, R : Any> {
+  private var draft = FlowNodeDraft<S, A, R>()
+
+  enum class Error {
+    MissingInitialNode
+  }
+
   fun onEntry(action: ActionEnv<S, A>.() -> Unit): FlowNodeBuilder<S, A, R> {
     return this
   }
@@ -46,6 +62,7 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
   }
 
   fun setInitial(id: NodeId): FlowNodeBuilder<S, A, R> {
+    draft.initial = id
     return this
   }
 
@@ -61,8 +78,12 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     return this
   }
 
-  fun build(initialState: S): FlowNode<S, A, R> {
-    return object : FlowNode<S, A, R> {
+  fun build(initialState: S): Result<FlowNode<S, A, R>, Error> {
+    return binding {
+      val initial = draft.initial.toResultOr { Error.MissingInitialNode }
+      FlowNode(
+        initial = initial.bind()
+      )
     }
   }
 }
