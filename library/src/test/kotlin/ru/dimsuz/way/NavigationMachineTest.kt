@@ -35,9 +35,9 @@ class NavigationMachineTest : ShouldSpec({
         .build(Unit)
         .unwrap()
 
-      val machine = NavigationMachine(node)
+      val machine = NavigationMachine<Unit, Unit, Unit>(node)
 
-      machine.initialNode shouldBe screen
+      machine.initialNodeId shouldBe screen
     }
   }
 
@@ -79,7 +79,7 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
   nextEventSelector: (node: NodeId) -> Event?,
   onTransition: (prev: NodeId, event: Event, next: NodeId) -> Unit
 ): NodeId {
-  var currentNode = this.initialNode
+  var currentNode = this.initialNodeId
   while (true) {
     val nextEvent = nextEventSelector(currentNode) ?: return currentNode
     val prev = currentNode

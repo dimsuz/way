@@ -55,7 +55,7 @@ fun main() {
         }
         .build()
     }
-    .addFlowNode<PermissionFlowResult>(NodeId("login_flow")) { subFlowBuilder ->
+    .addFlowNode<PermissionFlowResult>(NodeId("permissions")) { subFlowBuilder ->
       subFlowBuilder
         .of(
           FlowNodeBuilder<PermissionsFlowState, Unit, PermissionFlowResult>()

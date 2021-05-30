@@ -46,7 +46,9 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     return binding {
       val initial = draft.initial.toResultOr { Error.MissingInitialNode }
       FlowNode(
-        initial = initial.bind()
+        initial = initial.bind(),
+        children = emptyMap(),
+        eventTransitions = emptyMap()
       )
     }
   }
