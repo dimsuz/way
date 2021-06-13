@@ -1,7 +1,7 @@
 import com.github.michaelbull.result.unwrap
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.FlowNodeBuilder
-import ru.dimsuz.way.NodeId
+import ru.dimsuz.way.NodeKey
 
 data class LoginFlowState(
   val onEntryCalled: Boolean = false,
@@ -34,15 +34,15 @@ fun main() {
     .onExit {
       updateState { s -> s.copy(isDisposed = true) }
     }
-    .addScreenNode(NodeId("login_by_phone")) { screenBuilder ->
+    .addScreenNode(NodeKey("login_by_phone")) { screenBuilder ->
       screenBuilder
         .onEntry { println("entered $path") }
         .onExit { println("exited $path") }
         .on(Event("CANT_LOGIN_REQUESTED")) {
-          navigateTo(NodeId("cant_login"))
+          navigateTo(NodeKey("cant_login"))
         }
         .on(Event("FINGERPRINT_SET")) {
-          navigateTo(NodeId("permissions"))
+          navigateTo(NodeKey("permissions"))
         }
         .on(Event("GENERIC_EVENT")) {
           println("doing some generic side effect (printing stuff) and nothing more")
@@ -55,7 +55,7 @@ fun main() {
         }
         .build()
     }
-    .addFlowNode<PermissionFlowResult>(NodeId("permissions")) { subFlowBuilder ->
+    .addFlowNode<PermissionFlowResult>(NodeKey("permissions")) { subFlowBuilder ->
       subFlowBuilder
         .of(
           FlowNodeBuilder<PermissionsFlowState, Unit, PermissionFlowResult>()

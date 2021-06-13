@@ -5,11 +5,11 @@ import com.jakewharton.picnic.table
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.FlowNode
 import ru.dimsuz.way.FlowNodeBuilder
-import ru.dimsuz.way.NodeId
+import ru.dimsuz.way.NodeKey
 
 data class LeafFlowNodeScheme(
-  val initial: NodeId,
-  val nodes: Map<NodeId, Map<Event, NodeId>>
+  val initial: NodeKey,
+  val nodes: Map<NodeKey, Map<Event, NodeKey>>
 ) {
   override fun toString(): String {
     return table {
@@ -21,9 +21,9 @@ data class LeafFlowNodeScheme(
           cell("target")
         }
       }
-      nodes.forEach { (nodeId, transitions) ->
+      nodes.forEach { (nodeKey, transitions) ->
         row {
-          cell(nodeId.id) {
+          cell(nodeKey.id) {
             rowSpan = transitions.size
           }
           if (transitions.isNotEmpty()) {
@@ -44,19 +44,19 @@ data class LeafFlowNodeScheme(
   }
 }
 
-fun on(event: String, target: String): Pair<Event, NodeId> {
-  return Event(event) to NodeId(target)
+fun on(event: String, target: String): Pair<Event, NodeKey> {
+  return Event(event) to NodeKey(target)
 }
 
-fun node(id: String, vararg transition: Pair<Event, NodeId>): Pair<NodeId, Map<Event, NodeId>> {
-  return NodeId(id) to transition.toMap()
+fun node(id: String, vararg transition: Pair<Event, NodeKey>): Pair<NodeKey, Map<Event, NodeKey>> {
+  return NodeKey(id) to transition.toMap()
 }
 
-fun nodes(vararg nodes: Pair<NodeId, Map<Event, NodeId>>): Map<NodeId, Map<Event, NodeId>> {
+fun nodes(vararg nodes: Pair<NodeKey, Map<Event, NodeKey>>): Map<NodeKey, Map<Event, NodeKey>> {
   return nodes.toMap()
 }
 
-fun LeafFlowNodeScheme.isValidTransition(prev: NodeId, event: Event, new: NodeId): Boolean {
+fun LeafFlowNodeScheme.isValidTransition(prev: NodeKey, event: Event, new: NodeKey): Boolean {
   val transitions = nodes[prev] ?: return false
   val target = transitions[event]
   return (target != null && target == new) || (target == null && prev == new)
@@ -66,8 +66,8 @@ fun <S : Any, A : Any, R : Any> LeafFlowNodeScheme.toFlowNode(initialState: S): 
   return FlowNodeBuilder<S, A, R>()
     .setInitial(initial)
     .apply {
-      nodes.forEach { (nodeId, transitions) ->
-        addScreenNode(nodeId) { builder ->
+      nodes.forEach { (nodeKey, transitions) ->
+        addScreenNode(nodeKey) { builder ->
           transitions.forEach { (event, target) ->
             builder.on(event) { navigateTo(target) }
           }

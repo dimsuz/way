@@ -1,10 +1,10 @@
 package ru.dimsuz.way
 
 open class TransitionEnv<S : Any, A : Any, R : Any> : ActionEnv<S, A>() {
-  private var resolvedTargetId: NodeId? = null
+  private var resolvedTargetKey: NodeKey? = null
 
-  fun navigateTo(id: NodeId) {
-    resolvedTargetId = id
+  fun navigateTo(key: NodeKey) {
+    resolvedTargetKey = key
   }
 
   fun navigateTo(path: Path) {
@@ -16,7 +16,7 @@ open class TransitionEnv<S : Any, A : Any, R : Any> : ActionEnv<S, A>() {
   }
 
   // TODO make it return sealed class? nodeId/path/result
-  fun resolveTarget(): NodeId? {
-    return resolvedTargetId
+  fun resolveTarget(): NodeKey? {
+    return resolvedTargetKey
   }
 }

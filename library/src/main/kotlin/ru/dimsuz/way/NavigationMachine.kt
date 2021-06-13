@@ -1,32 +1,32 @@
 package ru.dimsuz.way
 
 class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) {
-  val initialNodeId: NodeId
+  val initialNodeKey: NodeKey
     get() {
       return root.initial
     }
 
-  fun transition(nodeId: NodeId, event: Event): NodeId {
-    val node = root.findChild(nodeId)
-      ?: error("no node with id = $nodeId found")
+  fun transition(nodeKey: NodeKey, event: Event): NodeKey {
+    val node = root.findChild(nodeKey)
+      ?: error("no node with id = $nodeKey found")
     val transitionSpec = node.eventTransitions[event]
     if (transitionSpec != null) {
       val transition = TransitionEnv<S, A, R>().apply(transitionSpec)
       return transition.resolveTarget()
-        ?: error("expected transition target for node id = $nodeId")
+        ?: error("expected transition target for node id = $nodeKey")
     }
-    return nodeId
+    return nodeKey
   }
 }
 
-private fun FlowNode<*, *, *>.findChild(id: NodeId): Node? {
-  children.forEach { (childId, child) ->
+private fun FlowNode<*, *, *>.findChild(key: NodeKey): Node? {
+  children.forEach { (childKey, child) ->
     when (child) {
       is FlowNode<*, *, *> -> {
-        return child.findChild(id)
+        return child.findChild(key)
       }
       is ScreenNode -> {
-        if (childId == id) {
+        if (childKey == key) {
           return child
         }
       }

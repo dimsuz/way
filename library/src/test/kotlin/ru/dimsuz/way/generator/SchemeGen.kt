@@ -7,12 +7,12 @@ import io.kotest.property.arbitrary.list
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.orNull
 import ru.dimsuz.way.Event
-import ru.dimsuz.way.NodeId
+import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.entity.LeafFlowNodeScheme
 
 fun Arb.Companion.leafFlowNodeScheme(): Arb<LeafFlowNodeScheme> {
   return arbitrary { rs ->
-    val stateNodes = Arb.list(Arb.nodeId(), 1..20).next(rs)
+    val stateNodes = Arb.list(Arb.nodeKey(), 1..20).next(rs)
     val states = stateNodes
       .associateWith { stateNode ->
         val targets = stateNodes.filter { stateNode != it }.shuffled(rs.random)
@@ -28,7 +28,7 @@ fun Arb.Companion.leafFlowNodeScheme(): Arb<LeafFlowNodeScheme> {
 /**
  * Produces random event selection for each state
  */
-fun Arb.Companion.screenEvents(scheme: LeafFlowNodeScheme): Arb<Map<NodeId, Event?>> {
+fun Arb.Companion.screenEvents(scheme: LeafFlowNodeScheme): Arb<Map<NodeKey, Event?>> {
   return arbitrary { rs ->
     scheme.nodes.mapValues { (_, transitions) ->
       if (transitions.isNotEmpty()) {

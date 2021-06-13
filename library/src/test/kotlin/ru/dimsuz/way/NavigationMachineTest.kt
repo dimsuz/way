@@ -12,12 +12,12 @@ import ru.dimsuz.way.entity.node
 import ru.dimsuz.way.entity.nodes
 import ru.dimsuz.way.entity.on
 import ru.dimsuz.way.entity.toFlowNode
-import ru.dimsuz.way.generator.nodeId
+import ru.dimsuz.way.generator.nodeKey
 
 class NavigationMachineTest : ShouldSpec({
   context("initial state") {
     should("report error if initial state is missing") {
-      val screen = Arb.nodeId().next()
+      val screen = Arb.nodeKey().next()
       val node = FlowNodeBuilder<Unit, Unit, Unit>()
         .addScreenNode(screen) { builder -> builder.build() }
         .build(Unit)
@@ -26,7 +26,7 @@ class NavigationMachineTest : ShouldSpec({
     }
 
     should("switch to initial state") {
-      val screen = Arb.nodeId().next()
+      val screen = Arb.nodeKey().next()
       val node = FlowNodeBuilder<Unit, Unit, Unit>()
         .setInitial(screen)
         .addScreenNode(screen) { builder -> builder.build() }
@@ -35,7 +35,7 @@ class NavigationMachineTest : ShouldSpec({
 
       val machine = NavigationMachine<Unit, Unit, Unit>(node)
 
-      machine.initialNodeId shouldBe screen
+      machine.initialNodeKey shouldBe screen
     }
   }
 
@@ -43,7 +43,7 @@ class NavigationMachineTest : ShouldSpec({
     context("atomic") {
       should("perform simple transitions") {
         val scheme = LeafFlowNodeScheme(
-          initial = NodeId("a"),
+          initial = NodeKey("a"),
           nodes = nodes(
             node("a", on(event = "T", target = "b")),
             node("b", on(event = "T", target = "c")),
@@ -62,7 +62,7 @@ class NavigationMachineTest : ShouldSpec({
 
       should("ignore non-enumerated events") {
         val scheme = LeafFlowNodeScheme(
-          initial = NodeId("a"),
+          initial = NodeKey("a"),
           nodes = nodes(
             node("a", on(event = "T", target = "b")),
             node("b", on(event = "B", target = "a")),
@@ -81,15 +81,15 @@ class NavigationMachineTest : ShouldSpec({
     context("compound") {
       should("switch to initial state of compound state") {
         val scheme = LeafFlowNodeScheme(
-          initial = NodeId("a2"),
+          initial = NodeKey("a2"),
           nodes = nodes(
             node("a1", on(event = "T", target = "a2")),
             node("a2", on(event = "S", target = "a1")),
           )
         )
         val node = FlowNodeBuilder<Unit, Unit, Unit>()
-          .setInitial(NodeId("a"))
-          .addFlowNode<Unit>(NodeId("a")) { builder ->
+          .setInitial(NodeKey("a"))
+          .addFlowNode<Unit>(NodeKey("a")) { builder ->
             builder
               .of(scheme.toFlowNode<Unit, Unit, Unit>(Unit))
               .build()
@@ -100,7 +100,7 @@ class NavigationMachineTest : ShouldSpec({
 
         // TODO сделать так: initialNodeId -> rename initial && initial is Path == true &&
         //  initial shouldBe Path.of(NodeId("a"),NodeId("a2"))
-        machine.initialNodeId shouldBe NodeId("a2")
+        machine.initialNodeKey shouldBe NodeKey("a2")
       }
     }
   }
@@ -108,11 +108,11 @@ class NavigationMachineTest : ShouldSpec({
 
 private data class TestTransition(
   val event: Event,
-  val expectedNode: NodeId,
+  val expectedNode: NodeKey,
 )
 
 private fun send(event: String, expectNode: String): TestTransition {
-  return TestTransition(Event(event), NodeId(expectNode))
+  return TestTransition(Event(event), NodeKey(expectNode))
 }
 
 private fun runTests(
@@ -123,7 +123,7 @@ private fun runTests(
   var currentEventIndex = 0
   machine.runTransitionSequence(
     nextEventSelector = { expectations.getOrNull(currentEventIndex)?.event },
-    onTransition = { prev: NodeId, event: Event, next: NodeId ->
+    onTransition = { prev: NodeKey, event: Event, next: NodeKey ->
       withClue("prev = $prev, event = $event, next = $next") {
         val expected = expectations[currentEventIndex].expectedNode
         next shouldBe expected
@@ -134,10 +134,10 @@ private fun runTests(
 }
 
 private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransitionSequence(
-  nextEventSelector: (node: NodeId) -> Event?,
-  onTransition: (prev: NodeId, event: Event, next: NodeId) -> Unit
-): NodeId {
-  var currentNode = this.initialNodeId
+  nextEventSelector: (node: NodeKey) -> Event?,
+  onTransition: (prev: NodeKey, event: Event, next: NodeKey) -> Unit
+): NodeKey {
+  var currentNode = this.initialNodeKey
   while (true) {
     val nextEvent = nextEventSelector(currentNode) ?: return currentNode
     val prev = currentNode

@@ -19,8 +19,8 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     return this
   }
 
-  fun setInitial(id: NodeId): FlowNodeBuilder<S, A, R> {
-    draft.initial = id
+  fun setInitial(key: NodeKey): FlowNodeBuilder<S, A, R> {
+    draft.initial = key
     return this
   }
 
@@ -29,15 +29,15 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
   }
 
   fun addScreenNode(
-    nodeId: NodeId,
+    nodeKey: NodeKey,
     buildAction: (builder: ScreenNodeBuilder<S, A, R>) -> ScreenNode
   ): FlowNodeBuilder<S, A, R> {
-    draft.screenBuildActions[nodeId] = buildAction
+    draft.screenBuildActions[nodeKey] = buildAction
     return this
   }
 
   fun <SR : Any> addFlowNode(
-    nodeId: NodeId,
+    nodeKey: NodeKey,
     buildAction: (builder: SubFlowBuilder<S, A, R, SR>) -> FlowNode<*, *, SR>
   ): FlowNodeBuilder<S, A, R> {
     return this
