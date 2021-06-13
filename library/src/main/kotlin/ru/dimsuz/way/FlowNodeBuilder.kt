@@ -32,6 +32,7 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     nodeId: NodeId,
     buildAction: (builder: ScreenNodeBuilder<S, A, R>) -> ScreenNode
   ): FlowNodeBuilder<S, A, R> {
+    draft.screenBuildActions[nodeId] = buildAction
     return this
   }
 
@@ -45,9 +46,13 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
   fun build(initialState: S): Result<FlowNode<S, A, R>, Error> {
     return binding {
       val initial = draft.initial.toResultOr { Error.MissingInitialNode }
+      val children = draft.screenBuildActions.mapValues { (_, buildAction) ->
+        val builder = ScreenNodeBuilder<S, A, R>()
+        buildAction(builder)
+      }
       FlowNode(
         initial = initial.bind(),
-        children = emptyMap(),
+        children = children,
         eventTransitions = emptyMap()
       )
     }

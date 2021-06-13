@@ -14,14 +14,14 @@ fun Arb.Companion.leafFlowNodeScheme(): Arb<LeafFlowNodeScheme> {
   return arbitrary { rs ->
     val stateNodes = Arb.list(Arb.nodeId(), 1..20).next(rs)
     val states = stateNodes
-      .associateWith {
-        val events = Arb.list(Arb.event(), 0..stateNodes.size).next(rs)
-        val targets = stateNodes.shuffled(rs.random)
+      .associateWith { stateNode ->
+        val targets = stateNodes.filter { stateNode != it }.shuffled(rs.random)
+        val events = Arb.list(Arb.event(), 0..targets.size).next(rs)
         events.mapIndexed { i, event ->
           event to targets[i]
         }.toMap()
       }
-    LeafFlowNodeScheme(states)
+    LeafFlowNodeScheme(initial = stateNodes.first(), states)
   }
 }
 
@@ -30,7 +30,7 @@ fun Arb.Companion.leafFlowNodeScheme(): Arb<LeafFlowNodeScheme> {
  */
 fun Arb.Companion.screenEvents(scheme: LeafFlowNodeScheme): Arb<Map<NodeId, Event?>> {
   return arbitrary { rs ->
-    scheme.states.mapValues { (_, transitions) ->
+    scheme.nodes.mapValues { (_, transitions) ->
       if (transitions.isNotEmpty()) {
         Arb.element(transitions.keys).orNull(nullProbability = 0.3).next(rs)
       } else null

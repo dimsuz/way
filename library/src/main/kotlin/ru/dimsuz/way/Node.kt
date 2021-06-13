@@ -1,5 +1,5 @@
 package ru.dimsuz.way
 
-sealed class Node {
-  abstract val eventTransitions: Map<Event, TransitionEnv<*, *, *>>
+sealed interface Node {
+  val eventTransitions: Map<Event, (TransitionEnv<*, *, *>) -> Unit>
 }

@@ -4,17 +4,15 @@ import com.github.michaelbull.result.getError
 import com.github.michaelbull.result.unwrap
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.ShouldSpec
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
-import io.kotest.property.arbitrary.flatMap
-import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
-import io.kotest.property.checkAll
-import ru.dimsuz.way.entity.isValidTransition
-import ru.dimsuz.way.generator.leafFlowNodeScheme
+import ru.dimsuz.way.entity.LeafFlowNodeScheme
+import ru.dimsuz.way.entity.node
+import ru.dimsuz.way.entity.nodes
+import ru.dimsuz.way.entity.on
+import ru.dimsuz.way.entity.toFlowNode
 import ru.dimsuz.way.generator.nodeId
-import ru.dimsuz.way.generator.screenEvents
 
 class NavigationMachineTest : ShouldSpec({
   context("initial state") {
@@ -42,38 +40,98 @@ class NavigationMachineTest : ShouldSpec({
   }
 
   context("transitions") {
-    should("perform simple transitions") {
-      checkAll(
-        Arb.leafFlowNodeScheme().flatMap { scheme -> Arb.screenEvents(scheme).map { scheme to it } }
-      ) { (scheme, screenEvents) ->
+    context("atomic") {
+      should("perform simple transitions") {
+        val scheme = LeafFlowNodeScheme(
+          initial = NodeId("a"),
+          nodes = nodes(
+            node("a", on(event = "T", target = "b")),
+            node("b", on(event = "T", target = "c")),
+            node("c", on(event = "B", target = "a")),
+          )
+        )
+
+        runTests(
+          scheme,
+
+          send(event = "T", expectNode = "b"),
+          send(event = "T", expectNode = "c"),
+          send(event = "B", expectNode = "a"),
+        )
+      }
+
+      should("ignore non-enumerated events") {
+        val scheme = LeafFlowNodeScheme(
+          initial = NodeId("a"),
+          nodes = nodes(
+            node("a", on(event = "T", target = "b")),
+            node("b", on(event = "B", target = "a")),
+          )
+        )
+
+        runTests(
+          scheme,
+
+          send(event = "T", expectNode = "b"),
+          send(event = "T", expectNode = "b"),
+          send(event = "X", expectNode = "b"),
+        )
+      }
+    }
+    context("compound") {
+      should("switch to initial state of compound state") {
+        val scheme = LeafFlowNodeScheme(
+          initial = NodeId("a2"),
+          nodes = nodes(
+            node("a1", on(event = "T", target = "a2")),
+            node("a2", on(event = "S", target = "a1")),
+          )
+        )
         val node = FlowNodeBuilder<Unit, Unit, Unit>()
-          .setInitial(scheme.states.keys.first())
-          .apply {
-            scheme.states.entries.forEach { (screenId, transitions) ->
-              addScreenNode(screenId) { builder ->
-                transitions.forEach { (event, target) ->
-                  builder.on(event) { navigateTo(target) }
-                }
-                builder.build()
-              }
-            }
+          .setInitial(NodeId("a"))
+          .addFlowNode<Unit>(NodeId("a")) { builder ->
+            builder
+              .of(scheme.toFlowNode<Unit, Unit, Unit>(Unit))
+              .build()
           }
           .build(Unit)
           .unwrap()
         val machine = NavigationMachine(node)
 
-        machine.runTransitionSequence(
-          { screenEvents[it] },
-          onTransition = { prev, event, next ->
-            withClue("prev = $prev, event = $event, next = $next") {
-              scheme.isValidTransition(prev, event, next).shouldBeTrue()
-            }
-          }
-        )
+        // TODO сделать так: initialNodeId -> rename initial && initial is Path == true &&
+        //  initial shouldBe Path.of(NodeId("a"),NodeId("a2"))
+        machine.initialNodeId shouldBe NodeId("a2")
       }
     }
   }
 })
+
+private data class TestTransition(
+  val event: Event,
+  val expectedNode: NodeId,
+)
+
+private fun send(event: String, expectNode: String): TestTransition {
+  return TestTransition(Event(event), NodeId(expectNode))
+}
+
+private fun runTests(
+  scheme: LeafFlowNodeScheme,
+  vararg expectations: TestTransition
+) {
+  val machine = NavigationMachine(scheme.toFlowNode(Unit))
+  var currentEventIndex = 0
+  machine.runTransitionSequence(
+    nextEventSelector = { expectations.getOrNull(currentEventIndex)?.event },
+    onTransition = { prev: NodeId, event: Event, next: NodeId ->
+      withClue("prev = $prev, event = $event, next = $next") {
+        val expected = expectations[currentEventIndex].expectedNode
+        next shouldBe expected
+      }
+      currentEventIndex += 1
+    }
+  )
+}
 
 private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransitionSequence(
   nextEventSelector: (node: NodeId) -> Event?,
@@ -84,6 +142,7 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
     val nextEvent = nextEventSelector(currentNode) ?: return currentNode
     val prev = currentNode
     currentNode = this.transition(currentNode, nextEvent)
+    println("${prev.id} x ${nextEvent.name} -> ${currentNode.id}")
     onTransition(prev, nextEvent, currentNode)
   }
 }

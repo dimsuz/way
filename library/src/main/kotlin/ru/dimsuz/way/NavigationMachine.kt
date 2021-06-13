@@ -9,12 +9,13 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
   fun transition(nodeId: NodeId, event: Event): NodeId {
     val node = root.findChild(nodeId)
       ?: error("no node with id = $nodeId found")
-    val transition = node.eventTransitions[event]
-    if (transition != null) {
+    val transitionSpec = node.eventTransitions[event]
+    if (transitionSpec != null) {
+      val transition = TransitionEnv<S, A, R>().apply(transitionSpec)
       return transition.resolveTarget()
         ?: error("expected transition target for node id = $nodeId")
     }
-    return initialNodeId
+    return nodeId
   }
 }
 
