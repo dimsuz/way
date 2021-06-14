@@ -1,14 +1,15 @@
 package ru.dimsuz.way
 
-open class TransitionEnv<S : Any, A : Any, R : Any> : ActionEnv<S, A>() {
-  private var resolvedTargetKey: NodeKey? = null
+open class TransitionEnv<S : Any, A : Any, R : Any>(path: Path) : ActionEnv<S, A>(path) {
+
+  private var resolvedTargetPath: Path? = null
 
   fun navigateTo(key: NodeKey) {
-    resolvedTargetKey = key
+    resolvedTargetPath = if (path.size == 1) Path(key) else path.take(path.size - 1) append key
   }
 
   fun navigateTo(path: Path) {
-    TODO()
+    resolvedTargetPath = path
   }
 
   fun finish(result: R) {
@@ -16,7 +17,7 @@ open class TransitionEnv<S : Any, A : Any, R : Any> : ActionEnv<S, A>() {
   }
 
   // TODO make it return sealed class? nodeId/path/result
-  fun resolveTarget(): NodeKey? {
-    return resolvedTargetKey
+  fun resolveTarget(): Path? {
+    return resolvedTargetPath
   }
 }

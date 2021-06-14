@@ -1,6 +1,8 @@
 package ru.dimsuz.way
 
-open class ActionEnv<S : Any, A : Any> {
+open class ActionEnv<S : Any, A : Any>(
+  val path: Path
+) {
   val args: A
     get() {
       TODO()
@@ -10,10 +12,6 @@ open class ActionEnv<S : Any, A : Any> {
       TODO()
     }
   val event: Event?
-    get() {
-      TODO()
-    }
-  val path: Path
     get() {
       TODO()
     }

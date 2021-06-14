@@ -1,36 +1,31 @@
 package ru.dimsuz.way
 
 class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) {
-  val initialNodeKey: NodeKey
+  val initial: Path
     get() {
-      return root.initial
+      return Path(root.initial)
     }
 
-  fun transition(nodeKey: NodeKey, event: Event): NodeKey {
-    val node = root.findChild(nodeKey)
-      ?: error("no node with id = $nodeKey found")
+  fun transition(path: Path, event: Event): Path {
+    val node = root.findChild(path)
+      ?: error("no node at $path found")
     val transitionSpec = node.eventTransitions[event]
     if (transitionSpec != null) {
-      val transition = TransitionEnv<S, A, R>().apply(transitionSpec)
+      val transition = TransitionEnv<S, A, R>(path).apply(transitionSpec)
       return transition.resolveTarget()
-        ?: error("expected transition target for node id = $nodeKey")
+        ?: error("expected transition target for path = $path")
     }
-    return nodeKey
+    return path
   }
 }
 
-private fun FlowNode<*, *, *>.findChild(key: NodeKey): Node? {
-  children.forEach { (childKey, child) ->
-    when (child) {
-      is FlowNode<*, *, *> -> {
-        return child.findChild(key)
-      }
-      is ScreenNode -> {
-        if (childKey == key) {
-          return child
-        }
-      }
-    }
+private fun FlowNode<*, *, *>.findChild(path: Path): Node? {
+  val first = path.firstSegment
+
+  val key = children.keys.find { it == first } ?: return null
+  val node = children[key] ?: return null
+  return when (node) {
+    is FlowNode<*, *, *> -> path.tail?.let { node.findChild(it) }
+    is ScreenNode -> if (path.tail == null) node else null
   }
-  return null
 }

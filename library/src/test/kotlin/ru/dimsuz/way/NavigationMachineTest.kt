@@ -33,9 +33,9 @@ class NavigationMachineTest : ShouldSpec({
         .build(Unit)
         .unwrap()
 
-      val machine = NavigationMachine<Unit, Unit, Unit>(node)
+      val machine = NavigationMachine(node)
 
-      machine.initialNodeKey shouldBe screen
+      machine.initial shouldBe Path(screen)
     }
   }
 
@@ -54,9 +54,9 @@ class NavigationMachineTest : ShouldSpec({
         runTests(
           scheme,
 
-          send(event = "T", expectNode = "b"),
-          send(event = "T", expectNode = "c"),
-          send(event = "B", expectNode = "a"),
+          send(event = "T", expectPath = "b"),
+          send(event = "T", expectPath = "c"),
+          send(event = "B", expectPath = "a"),
         )
       }
 
@@ -72,9 +72,9 @@ class NavigationMachineTest : ShouldSpec({
         runTests(
           scheme,
 
-          send(event = "T", expectNode = "b"),
-          send(event = "T", expectNode = "b"),
-          send(event = "X", expectNode = "b"),
+          send(event = "T", expectPath = "b"),
+          send(event = "T", expectPath = "b"),
+          send(event = "X", expectPath = "b"),
         )
       }
     }
@@ -98,9 +98,7 @@ class NavigationMachineTest : ShouldSpec({
           .unwrap()
         val machine = NavigationMachine(node)
 
-        // TODO сделать так: initialNodeId -> rename initial && initial is Path == true &&
-        //  initial shouldBe Path.of(NodeId("a"),NodeId("a2"))
-        machine.initialNodeKey shouldBe NodeKey("a2")
+        machine.initial shouldBe (NodeKey("a") append NodeKey("a2"))
       }
     }
   }
@@ -108,11 +106,11 @@ class NavigationMachineTest : ShouldSpec({
 
 private data class TestTransition(
   val event: Event,
-  val expectedNode: NodeKey,
+  val expectedPath: Path,
 )
 
-private fun send(event: String, expectNode: String): TestTransition {
-  return TestTransition(Event(event), NodeKey(expectNode))
+private fun send(event: String, expectPath: String): TestTransition {
+  return TestTransition(Event(event), Path.fromNonEmptyListOf(expectPath.split(".").map { NodeKey(it) }))
 }
 
 private fun runTests(
@@ -123,9 +121,9 @@ private fun runTests(
   var currentEventIndex = 0
   machine.runTransitionSequence(
     nextEventSelector = { expectations.getOrNull(currentEventIndex)?.event },
-    onTransition = { prev: NodeKey, event: Event, next: NodeKey ->
+    onTransition = { prev: Path, event: Event, next: Path ->
       withClue("prev = $prev, event = $event, next = $next") {
-        val expected = expectations[currentEventIndex].expectedNode
+        val expected = expectations[currentEventIndex].expectedPath
         next shouldBe expected
       }
       currentEventIndex += 1
@@ -134,15 +132,15 @@ private fun runTests(
 }
 
 private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransitionSequence(
-  nextEventSelector: (node: NodeKey) -> Event?,
-  onTransition: (prev: NodeKey, event: Event, next: NodeKey) -> Unit
-): NodeKey {
-  var currentNode = this.initialNodeKey
+  nextEventSelector: (path: Path) -> Event?,
+  onTransition: (prev: Path, event: Event, next: Path) -> Unit
+): Path {
+  var currentPath = this.initial
   while (true) {
-    val nextEvent = nextEventSelector(currentNode) ?: return currentNode
-    val prev = currentNode
-    currentNode = this.transition(currentNode, nextEvent)
-    println("${prev.id} x ${nextEvent.name} -> ${currentNode.id}")
-    onTransition(prev, nextEvent, currentNode)
+    val nextEvent = nextEventSelector(currentPath) ?: return currentPath
+    val prev = currentPath
+    currentPath = this.transition(currentPath, nextEvent)
+    println("$prev x ${nextEvent.name} -> $currentPath")
+    onTransition(prev, nextEvent, currentPath)
   }
 }
