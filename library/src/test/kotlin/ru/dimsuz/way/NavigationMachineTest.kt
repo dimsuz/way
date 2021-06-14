@@ -100,6 +100,36 @@ class NavigationMachineTest : ShouldSpec({
 
         machine.initial shouldBe (NodeKey("a") append NodeKey("a2"))
       }
+
+      should("switch to initial state of compound state 2 levels deep") {
+        val scheme2 = LeafFlowNodeScheme(
+          initial = NodeKey("a1a"),
+          nodes = nodes(
+            node("a1a"),
+          )
+        )
+        val node = FlowNodeBuilder<Unit, Unit, Unit>()
+          .setInitial(NodeKey("a"))
+          .addFlowNode<Unit>(NodeKey("a")) { builder ->
+            builder
+              .of(
+                FlowNodeBuilder<Unit, Unit, Unit>()
+                  .setInitial(NodeKey("a1"))
+                  .addFlowNode<Unit>(NodeKey("a1")) { childBuilder ->
+                    childBuilder.of(scheme2.toFlowNode<Unit, Unit, Unit>(Unit))
+                      .build()
+                  }
+                  .build(Unit)
+                  .unwrap()
+              )
+              .build()
+          }
+          .build(Unit)
+          .unwrap()
+        val machine = NavigationMachine(node)
+
+        machine.initial shouldBe (NodeKey("a") append NodeKey("a1") append NodeKey("a1a"))
+      }
     }
   }
 })
