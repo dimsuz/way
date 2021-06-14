@@ -23,12 +23,12 @@ data class LeafFlowNodeScheme(
       }
       nodes.forEach { (nodeKey, transitions) ->
         row {
-          cell(nodeKey.id) {
+          cell(nodeKey.key) {
             rowSpan = transitions.size
           }
           if (transitions.isNotEmpty()) {
             cell(transitions.entries.first().key.name)
-            cell(transitions.entries.first().value.id)
+            cell(transitions.entries.first().value.key)
           } else {
             cell("no transitions")
           }
@@ -36,7 +36,7 @@ data class LeafFlowNodeScheme(
         transitions.entries.drop(1).forEach { (event, target) ->
           row {
             cell(event.name)
-            cell(target.id)
+            cell(target.key)
           }
         }
       }
