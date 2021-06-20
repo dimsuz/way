@@ -3,7 +3,15 @@ package ru.dimsuz.way
 class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) {
   val initial: Path
     get() {
-      return Path(root.initial)
+      return generateSequence(seed = Path(root.initial) to false) { (path, _) ->
+        when (val node = root.findChild(path)) {
+          is FlowNode<*, *, *> -> {
+            (path append node.initial) to false
+          }
+          is ScreenNode -> path to true
+          null -> error("no initial node for path $path")
+        }
+      }.takeWhile { (_, isAtomic) -> !isAtomic }.last().first
     }
 
   fun transition(path: Path, event: Event): Path {
@@ -24,8 +32,13 @@ private fun FlowNode<*, *, *>.findChild(path: Path): Node? {
 
   val key = children.keys.find { it == first } ?: return null
   val node = children[key] ?: return null
-  return when (node) {
-    is FlowNode<*, *, *> -> path.tail?.let { node.findChild(it) }
-    is ScreenNode -> if (path.tail == null) node else null
+  val tail = path.tail
+  return if (tail != null) {
+    when (node) {
+      is FlowNode<*, *, *> -> node.findChild(tail)
+      is ScreenNode -> null
+    }
+  } else {
+    node
   }
 }

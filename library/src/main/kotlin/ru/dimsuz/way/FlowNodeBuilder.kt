@@ -40,14 +40,20 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     nodeKey: NodeKey,
     buildAction: (builder: SubFlowBuilder<S, A, R, SR>) -> FlowNode<*, *, SR>
   ): FlowNodeBuilder<S, A, R> {
+    draft.flowBuildActions[nodeKey] = buildAction as ((SubFlowBuilder<S, A, R, *>) -> FlowNode<*, *, *>)
     return this
   }
 
   fun build(initialState: S): Result<FlowNode<S, A, R>, Error> {
     return binding {
       val initial = draft.initial.toResultOr { Error.MissingInitialNode }
-      val children = draft.screenBuildActions.mapValues { (_, buildAction) ->
+      val children = mutableMapOf<NodeKey, Node>()
+      draft.screenBuildActions.mapValuesTo(children) { (_, buildAction) ->
         val builder = ScreenNodeBuilder<S, A, R>()
+        buildAction(builder)
+      }
+      draft.flowBuildActions.mapValuesTo(children) { (_, buildAction) ->
+        val builder = SubFlowBuilder<S, A, R, Any>()
         buildAction(builder)
       }
       FlowNode(
