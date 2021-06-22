@@ -93,6 +93,7 @@ class NavigationMachineTest : ShouldSpec({
             builder
               .of(scheme.toFlowNode<Unit, Unit, Unit>(Unit))
               .build()
+              .unwrap()
           }
           .build(Unit)
           .unwrap()
@@ -118,11 +119,13 @@ class NavigationMachineTest : ShouldSpec({
                   .addFlowNode<Unit>(NodeKey("a1")) { childBuilder ->
                     childBuilder.of(scheme2.toFlowNode<Unit, Unit, Unit>(Unit))
                       .build()
+                      .unwrap()
                   }
                   .build(Unit)
                   .unwrap()
               )
               .build()
+              .unwrap()
           }
           .build(Unit)
           .unwrap()

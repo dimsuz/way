@@ -69,6 +69,7 @@ fun main() {
           }
         }
         .build()
+        .unwrap()
     }
     .build(LoginFlowState())
 
