@@ -11,6 +11,20 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     MissingInitialNode
   }
 
+  constructor()
+
+  internal constructor(node: FlowNode<S, A, R>) {
+    draft = FlowNodeDraft(
+      initial = node.initial,
+      screenBuildActions = node.children
+        .filterValues { it is ScreenNode }
+        .mapValuesTo(mutableMapOf()) { (_, node) -> { node as ScreenNode } },
+      flowBuildActions = node.children
+        .filterValues { it is ScreenNode }
+        .mapValuesTo(mutableMapOf()) { (_, node) -> { node as FlowNode<*, *, *> } },
+    )
+  }
+
   fun onEntry(action: ActionEnv<S, A>.() -> Unit): FlowNodeBuilder<S, A, R> {
     return this
   }
