@@ -7,10 +7,10 @@ import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
-import ru.dimsuz.way.entity.LeafFlowNodeScheme
+import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.node
-import ru.dimsuz.way.entity.nodes
 import ru.dimsuz.way.entity.on
+import ru.dimsuz.way.entity.scheme
 import ru.dimsuz.way.entity.toFlowNode
 import ru.dimsuz.way.generator.nodeKey
 
@@ -42,13 +42,11 @@ class NavigationMachineTest : ShouldSpec({
   context("transitions") {
     context("atomic") {
       should("perform simple transitions") {
-        val scheme = LeafFlowNodeScheme(
-          initial = NodeKey("a"),
-          nodes = nodes(
-            node("a", on(event = "T", target = "b")),
-            node("b", on(event = "T", target = "c")),
-            node("c", on(event = "B", target = "a")),
-          )
+        val scheme = scheme(
+          initial = "a",
+          node("a", on(event = "T", target = "b")),
+          node("b", on(event = "T", target = "c")),
+          node("c", on(event = "B", target = "a")),
         )
 
         runTests(
@@ -61,12 +59,10 @@ class NavigationMachineTest : ShouldSpec({
       }
 
       should("ignore non-enumerated events") {
-        val scheme = LeafFlowNodeScheme(
-          initial = NodeKey("a"),
-          nodes = nodes(
-            node("a", on(event = "T", target = "b")),
-            node("b", on(event = "B", target = "a")),
-          )
+        val scheme = scheme(
+          initial = "a",
+          node("a", on(event = "T", target = "b")),
+          node("b", on(event = "B", target = "a")),
         )
 
         runTests(
@@ -80,55 +76,41 @@ class NavigationMachineTest : ShouldSpec({
     }
     context("compound") {
       should("switch to initial state of compound state") {
-        val scheme = LeafFlowNodeScheme(
-          initial = NodeKey("a2"),
-          nodes = nodes(
-            node("a1", on(event = "T", target = "a2")),
-            node("a2", on(event = "S", target = "a1")),
+        val scheme = scheme(
+          initial = "a",
+          node(
+            "a",
+            scheme(
+              initial = "a2",
+              node("a1", on(event = "T", target = "a2")),
+              node("a2", on(event = "S", target = "a1")),
+            )
           )
         )
-        val node = FlowNodeBuilder<Unit, Unit, Unit>()
-          .setInitial(NodeKey("a"))
-          .addFlowNode<Unit>(NodeKey("a")) { builder ->
-            builder
-              .of(scheme.toFlowNode<Unit, Unit, Unit>(Unit))
-              .build()
-              .unwrap()
-          }
-          .build(Unit)
-          .unwrap()
+        val node = scheme.toFlowNode<Unit, Unit, Unit>(Unit)
         val machine = NavigationMachine(node)
 
         machine.initial shouldBe (NodeKey("a") append NodeKey("a2"))
       }
 
       should("switch to initial state of compound state 2 levels deep") {
-        val scheme2 = LeafFlowNodeScheme(
-          initial = NodeKey("a1a"),
-          nodes = nodes(
-            node("a1a"),
+        val scheme = scheme(
+          initial = "a",
+          node(
+            "a",
+            scheme(
+              initial = "a1",
+              node(
+                "a1",
+                scheme(
+                  initial = "a1a",
+                  node("a1a"),
+                )
+              )
+            ),
           )
         )
-        val node = FlowNodeBuilder<Unit, Unit, Unit>()
-          .setInitial(NodeKey("a"))
-          .addFlowNode<Unit>(NodeKey("a")) { builder ->
-            builder
-              .of(
-                FlowNodeBuilder<Unit, Unit, Unit>()
-                  .setInitial(NodeKey("a1"))
-                  .addFlowNode<Unit>(NodeKey("a1")) { childBuilder ->
-                    childBuilder.of(scheme2.toFlowNode<Unit, Unit, Unit>(Unit))
-                      .build()
-                      .unwrap()
-                  }
-                  .build(Unit)
-                  .unwrap()
-              )
-              .build()
-              .unwrap()
-          }
-          .build(Unit)
-          .unwrap()
+        val node = scheme.toFlowNode<Unit, Unit, Unit>(Unit)
         val machine = NavigationMachine(node)
 
         machine.initial shouldBe (NodeKey("a") append NodeKey("a1") append NodeKey("a1a"))
@@ -147,7 +129,7 @@ private fun send(event: String, expectPath: String): TestTransition {
 }
 
 private fun runTests(
-  scheme: LeafFlowNodeScheme,
+  scheme: NodeScheme,
   vararg expectations: TestTransition
 ) {
   val machine = NavigationMachine(scheme.toFlowNode(Unit))
