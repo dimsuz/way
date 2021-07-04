@@ -2,17 +2,18 @@ package ru.dimsuz.way.entity
 
 import com.github.michaelbull.result.unwrap
 import com.jakewharton.picnic.table
+import ru.dimsuz.way.BackStackCommand
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.FlowNode
 import ru.dimsuz.way.FlowNodeBuilder
+import ru.dimsuz.way.NavigationMachine
+import ru.dimsuz.way.NavigationService
 import ru.dimsuz.way.NodeKey
 
 data class NodeScheme(
   val initial: String,
   val nodes: Map<String, SchemeNode>
 ) {
-
-  constructor(initial: String, vararg nodes: Pair<String, SchemeNode>) : this(initial, nodes.toMap())
 
   override fun toString(): String {
     return table {
@@ -101,4 +102,11 @@ fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(initialState: S): FlowNode
     }
     .build(initialState)
     .unwrap()
+}
+
+fun <S : Any> NodeScheme.toService(
+  initialState: S,
+  onCommand: (command: BackStackCommand) -> Unit
+): NavigationService {
+  return NavigationService(NavigationMachine(this.toFlowNode(initialState)), onCommand)
 }
