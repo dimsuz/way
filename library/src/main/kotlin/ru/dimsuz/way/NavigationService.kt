@@ -1,10 +1,28 @@
 package ru.dimsuz.way
 
 class NavigationService(
-  val machine: NavigationMachine<*, *, *>,
-  var onCommand: (command: BackStackCommand) -> Unit
+  private val machine: NavigationMachine<*, *, *>,
+  private var onCommand: (command: BackStackCommand) -> Unit
 ) {
+
+  private var currentPath = machine.initial
+
   fun sendEvent(event: Event) {
+    val previousPath = currentPath
+    currentPath = machine.transition(currentPath, event)
+    produceCommand(previousPath, currentPath)?.also(onCommand)
+  }
+
+  fun start() {
+    onCommand(
+      BackStackCommand.Replace(
+        newBackStack = listOf(BackStackEntry(machine.initial.lastSegment))
+      )
+    )
+  }
+
+  private fun produceCommand(previousPath: Path, newPath: Path): BackStackCommand? {
+    return BackStackCommand.Push(BackStackEntry(newPath.lastSegment, arguments = null))
   }
 }
 

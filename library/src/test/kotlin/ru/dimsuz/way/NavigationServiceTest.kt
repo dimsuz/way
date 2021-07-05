@@ -2,6 +2,7 @@ package ru.dimsuz.way
 
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.collections.shouldContainExactly
+import ru.dimsuz.way.BackStackCommand.Pop
 import ru.dimsuz.way.BackStackCommand.Push
 import ru.dimsuz.way.BackStackCommand.Replace
 import ru.dimsuz.way.entity.NodeScheme
@@ -17,7 +18,7 @@ class NavigationServiceTest : ShouldSpec({
       scheme(
         initial = "a",
         node("a")
-      ).toCollectingService(mutableListOf())
+      ).toCollectingService(commands)
 
       commands.shouldContainExactly(Replace(listOf(entry("a"))))
     }
@@ -29,9 +30,10 @@ class NavigationServiceTest : ShouldSpec({
         node("a", on("T", target = "b")),
         node("b", on("U", target = "c")),
         node("c")
-      ).toCollectingService(mutableListOf())
+      ).toCollectingService(commands)
 
       service.sendEvent(Event("T"))
+      service.sendEvent(Event("U"))
 
       commands.shouldContainExactly(
         Replace(listOf(entry("a"))),
@@ -39,13 +41,34 @@ class NavigationServiceTest : ShouldSpec({
         Push(entry("c")),
       )
     }
+
+    should("emit pop for transition to the previous screen") {
+      val commands = mutableListOf<BackStackCommand>()
+      val service = scheme(
+        initial = "a",
+        node("a", on("T", target = "b")),
+        node("b", on("U", target = "c")),
+        node("c", on("BACK", target = "a")),
+      ).toCollectingService(commands)
+
+      service.sendEvent(Event("T"))
+      service.sendEvent(Event("U"))
+      service.sendEvent(Event("BACK"))
+
+      commands.takeLast(3).shouldContainExactly(
+        Push(entry("b")),
+        Push(entry("c")),
+        Pop(count = 2),
+      )
+    }
   }
 })
 
 private fun NodeScheme.toCollectingService(
-  commandSink: MutableList<BackStackCommand>
+  commandSink: MutableList<BackStackCommand>,
+  start: Boolean = true,
 ): NavigationService {
-  return this.toService(Unit, onCommand = { commandSink.add(it) })
+  return this.toService(Unit, onCommand = { commandSink.add(it) }).apply { if (start) start() }
 }
 
 private fun entry(key: String): BackStackEntry {
