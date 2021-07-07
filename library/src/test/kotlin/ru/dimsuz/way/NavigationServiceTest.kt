@@ -23,6 +23,36 @@ class NavigationServiceTest : ShouldSpec({
       commands.shouldContainExactly(Replace(listOf(entry("a"))))
     }
 
+    should("emit nothing if staying on the same node after ignoring event") {
+      val commands = mutableListOf<BackStackCommand>()
+      val service = scheme(
+        initial = "a",
+        node("a", on("T", target = "b")),
+        node("b"),
+      ).toCollectingService(commands)
+
+      service.sendEvent(Event("UNKNOWN"))
+
+      commands.shouldContainExactly(
+        Replace(listOf(entry("a"))),
+      )
+    }
+
+    should("emit nothing if staying on the same node after transition to the same state") {
+      val commands = mutableListOf<BackStackCommand>()
+      val service = scheme(
+        initial = "a",
+        node("a", on("T", target = "a")),
+        node("b"),
+      ).toCollectingService(commands)
+
+      service.sendEvent(Event("T"))
+
+      commands.shouldContainExactly(
+        Replace(listOf(entry("a"))),
+      )
+    }
+
     should("emit push for transition to the new screen") {
       val commands = mutableListOf<BackStackCommand>()
       val service = scheme(
