@@ -31,7 +31,11 @@ value class Path private constructor(private val segments: List<NodeKey>) {
   val size get() = segments.size
 
   fun take(count: Int): Path {
-    return Path.fromNonEmptyListOf(segments.take(count))
+    return fromNonEmptyListOf(segments.take(count))
+  }
+
+  fun dropLast(count: Int): Path? {
+    return if (segments.size <= count) null else Path(segments.dropLast(count))
   }
 
   infix fun append(segment: NodeKey): Path {

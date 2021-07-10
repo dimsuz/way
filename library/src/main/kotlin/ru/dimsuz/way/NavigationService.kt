@@ -1,54 +1,53 @@
 package ru.dimsuz.way
 
-class NavigationService(
+class NavigationService<T : Any>(
   private val machine: NavigationMachine<*, *, *>,
-  private var onCommand: (command: BackStackCommand) -> Unit
+  private val commandBuilder: CommandBuilder<T>,
+  private var onCommand: (command: T) -> Unit
 ) {
 
-  private val history: ArrayDeque<Path> = ArrayDeque()
+  private var backStack: BackStack = emptyList()
 
   fun sendEvent(event: Event) {
-    if (history.isEmpty()) {
+    if (backStack.isEmpty()) {
       error("not started")
     }
-    val previousPath = history.last()
-    val newPath = machine.transition(history.last(), event)
-    val command = produceCommand(history, previousPath, newPath)
-    if (previousPath != newPath) {
-      history.add(newPath)
-    }
-    if (command != null) {
-      onCommand(command)
+    val previousPath = backStack.last()
+    val newPath = machine.transition(backStack.last(), event)
+    val newBackStack = recordTransition(backStack, previousPath, newPath)
+    if (backStack != newBackStack) {
+      val oldBackStack = backStack
+      backStack = newBackStack
+      onCommand(commandBuilder(oldBackStack, newBackStack))
     }
   }
 
   fun start() {
-    history.add(machine.initial)
-    onCommand(
-      BackStackCommand.Replace(
-        newBackStack = listOf(BackStackEntry(machine.initial.lastSegment))
-      )
-    )
+    backStack = listOf(machine.initial)
+    onCommand(commandBuilder(emptyList(), backStack))
   }
 
-  private fun produceCommand(history: List<Path>, previousPath: Path, newPath: Path): BackStackCommand? {
-    val existingIndex = history.indexOf(newPath)
+  private fun recordTransition(backStack: BackStack, previousPath: Path, newPath: Path): BackStack {
+    val existingIndex = backStack.indexOf(newPath)
     return when {
       previousPath == newPath -> {
-        null
+        backStack
       }
       existingIndex != -1 -> {
-        BackStackCommand.Pop(count = history.lastIndex - existingIndex)
+        backStack.dropLast(backStack.lastIndex - existingIndex)
       }
       else -> {
-        BackStackCommand.Push(BackStackEntry(newPath.lastSegment, arguments = null))
+        backStack.plus(newPath)
       }
     }
   }
 }
 
+typealias CommandBuilder<T> = (oldBackStack: BackStack, newBackStack: BackStack) -> T
+typealias BackStack = List<Path>
+
 sealed class BackStackCommand {
-  data class Push(val entry: BackStackEntry) : BackStackCommand()
+  data class Push(val path: BackStackEntry) : BackStackCommand()
   data class Pop(val count: Int) : BackStackCommand()
   data class Replace(val newBackStack: List<BackStackEntry>) : BackStackCommand()
 }

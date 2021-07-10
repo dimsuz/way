@@ -2,13 +2,14 @@ package ru.dimsuz.way.entity
 
 import com.github.michaelbull.result.unwrap
 import com.jakewharton.picnic.table
-import ru.dimsuz.way.BackStackCommand
+import ru.dimsuz.way.CommandBuilder
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.FlowNode
 import ru.dimsuz.way.FlowNodeBuilder
 import ru.dimsuz.way.NavigationMachine
 import ru.dimsuz.way.NavigationService
 import ru.dimsuz.way.NodeKey
+import ru.dimsuz.way.Path
 
 data class NodeScheme(
   val initial: String,
@@ -85,7 +86,14 @@ fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(initialState: S): FlowNode
           is SchemeNode.Atomic -> {
             addScreenNode(NodeKey(nodeKey)) { builder ->
               node.transitions.forEach { (event, target) ->
-                builder.on(event) { navigateTo(target) }
+                builder.on(event) {
+                  if (target.key.contains(".")) {
+                    val segments = target.key.split(".").map { NodeKey(it) }
+                    navigateTo(Path(segments.first(), segments.drop(1)))
+                  } else {
+                    navigateTo(target)
+                  }
+                }
               }
               builder.build()
             }
@@ -104,9 +112,10 @@ fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(initialState: S): FlowNode
     .unwrap()
 }
 
-fun <S : Any> NodeScheme.toService(
+fun <S : Any, C : Any> NodeScheme.toService(
   initialState: S,
-  onCommand: (command: BackStackCommand) -> Unit
-): NavigationService {
-  return NavigationService(NavigationMachine(this.toFlowNode(initialState)), onCommand)
+  commandBuilder: CommandBuilder<C>,
+  onCommand: (command: C) -> Unit
+): NavigationService<C> {
+  return NavigationService(NavigationMachine(this.toFlowNode(initialState)), commandBuilder, onCommand)
 }
