@@ -93,7 +93,7 @@ class NavigationServiceTest : ShouldSpec({
           scheme(
             initial = "A1",
             node("A1", on("T", target = "A2")),
-            node("A2", on("T", target = "flowB.B1"))
+            node("A2", on("T", target = "#flowB"))
           )
         ),
         node(
@@ -110,6 +110,37 @@ class NavigationServiceTest : ShouldSpec({
 
       commands.last().shouldContainExactly(
         path("flowB.B1")
+      )
+    }
+
+    should("push without clearing back stack when switching to sub-flows") {
+      val commands = mutableListOf<BackStack>()
+      val service = scheme(
+        initial = "flowA",
+        node(
+          "flowA",
+          scheme(
+            initial = "A1",
+            node("A1", on("T", target = "A2")),
+            node("A2", on("T", target = "flowB")),
+            node(
+              "flowB",
+              scheme(
+                initial = "B1",
+                node("B1"),
+              )
+            ),
+          )
+        ),
+      ).toCollectingService(commands)
+
+      service.sendEvent(Event("T")) // flowA.A1 -> flowA.A2
+      service.sendEvent(Event("T")) // flowA.A2 -> flowB.B1
+
+      commands.last().shouldContainExactly(
+        path("flowA.A1"),
+        path("flowA.A2"),
+        path("flowA.flowB.B1")
       )
     }
   }

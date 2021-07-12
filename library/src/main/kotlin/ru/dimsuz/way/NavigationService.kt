@@ -37,7 +37,21 @@ class NavigationService<T : Any>(
         backStack.dropLast(backStack.lastIndex - existingIndex)
       }
       else -> {
-        backStack.plus(newPath)
+        val parent = newPath.dropLast(1)
+        if (parent != null) {
+          backStack.filter { entry ->
+            // See NOTE_CLEAR_BACK_STACK_RULES
+            var isLeafAlongThePath = false
+            var partial: Path? = parent
+            while (partial != null && !isLeafAlongThePath) {
+              isLeafAlongThePath = entry.dropLast(1) == partial
+              partial = partial.dropLast(1)
+            }
+            isLeafAlongThePath
+          }.plus(newPath)
+        } else {
+          backStack.plus(newPath)
+        }
       }
     }
   }
@@ -56,3 +70,18 @@ data class BackStackEntry(
   val key: NodeKey,
   val arguments: Any? = null,
 )
+
+// NOTE_CLEAR_BACK_STACK_RULES
+// TODO document nicely and thoroughly!
+// Case1:
+//   BackStack: [ m.flowA.S1, m.flowA.S2, m.flowA.flowB.S1 ]
+//   Transition: m.flowA.flowB.S1 -> m.flowA.flowB.S2
+//   New BackStack: [ m.flowA.S1, m.flowA.S2, m.flowA.flowB.S1, m.flowA.flowB.S2 ]
+//   Description: We split state path into components and leave any leaf nodes of all sub-paths,
+//                i.e. m.flowA.S1 and m.flowA.S2 must remain in stack although not direct children of m.flowA.flowB.
+//                All others are cleared
+// Case2:
+//   BackStack: [ m.flowA.S1, m.flowA.S2, m.flowA.flowB.S1 ]
+//   Transition: m.flowA.flowB.S1 -> m.flowA.flowC.S1
+//   New BackStack: [ m.flowA.S1, m.flowA.S2, m.flowA.flowC.S1 ]
+//   Description: m.flowA.flowB.S1 must go away due to the logic described in Case1

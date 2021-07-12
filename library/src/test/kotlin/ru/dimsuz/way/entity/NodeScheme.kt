@@ -95,6 +95,9 @@ fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(initialState: S): FlowNode
                   if (target.key.contains(".")) {
                     val segments = target.key.split(".").map { NodeKey(it) }
                     navigateTo(Path(segments.first(), segments.drop(1)))
+                  } else if (target.key.startsWith("#")) {
+                    val segments = target.key.drop(1).split(".").filterNot { it.isEmpty() }.map { NodeKey(it) }
+                    navigateTo(Path(segments.first(), segments.drop(1)))
                   } else {
                     navigateTo(target)
                   }
