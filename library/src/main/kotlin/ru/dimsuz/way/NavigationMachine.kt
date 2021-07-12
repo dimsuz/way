@@ -18,12 +18,18 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     val node = root.findChild(path)
       ?: error("no node at $path found")
     val transitionSpec = node.eventTransitions[event]
-    if (transitionSpec != null) {
+    return if (transitionSpec != null) {
       val transition = TransitionEnv<S, A, R>(path).apply(transitionSpec)
-      return transition.resolveTarget()
+      val targetPath = transition.resolveTarget()
         ?: error("expected transition target for path = $path")
+      when (val targetNode = root.findChild(targetPath)) {
+        is FlowNode<*, *, *> -> targetPath append targetNode.initial
+        is ScreenNode -> targetPath
+        null -> error("machine has no node \"$targetPath\"")
+      }
+    } else {
+      path
     }
-    return path
   }
 }
 

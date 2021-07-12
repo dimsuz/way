@@ -77,6 +77,11 @@ fun scheme(initial: String, vararg nodes: Pair<String, SchemeNode>): NodeScheme 
   return NodeScheme(initial, nodes.toMap())
 }
 
+fun path(s: String): Path {
+  val segments = s.split(".").map { NodeKey(it) }
+  return Path(segments.first(), segments.drop(1))
+}
+
 fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(initialState: S): FlowNode<S, A, R> {
   return FlowNodeBuilder<S, A, R>()
     .setInitial(NodeKey(initial))

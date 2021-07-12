@@ -10,6 +10,7 @@ import io.kotest.property.arbitrary.next
 import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.node
 import ru.dimsuz.way.entity.on
+import ru.dimsuz.way.entity.path
 import ru.dimsuz.way.entity.scheme
 import ru.dimsuz.way.entity.toFlowNode
 import ru.dimsuz.way.generator.nodeKey
@@ -90,7 +91,7 @@ class NavigationMachineTest : ShouldSpec({
         val node = scheme.toFlowNode<Unit, Unit, Unit>(Unit)
         val machine = NavigationMachine(node)
 
-        machine.initial shouldBe (NodeKey("a") append NodeKey("a2"))
+        machine.initial shouldBe path("a.a2")
       }
 
       should("switch to initial state of compound state 2 levels deep") {
@@ -113,7 +114,26 @@ class NavigationMachineTest : ShouldSpec({
         val node = scheme.toFlowNode<Unit, Unit, Unit>(Unit)
         val machine = NavigationMachine(node)
 
-        machine.initial shouldBe (NodeKey("a") append NodeKey("a1") append NodeKey("a1a"))
+        machine.initial shouldBe path("a.a1.a1a")
+      }
+
+      should("switch to initial state of compound state when switch caused by transition") {
+        val scheme = scheme(
+          initial = "a",
+          node("a", on("T", target = "b")),
+          node(
+            "b",
+            scheme(
+              initial = "b1",
+              node("b1")
+            ),
+          )
+        )
+
+        runTests(
+          scheme,
+          send(event = "T", expectPath = "b.b1"),
+        )
       }
     }
   }

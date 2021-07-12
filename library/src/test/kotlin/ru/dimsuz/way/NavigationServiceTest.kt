@@ -5,6 +5,7 @@ import io.kotest.matchers.collections.shouldContainExactly
 import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.node
 import ru.dimsuz.way.entity.on
+import ru.dimsuz.way.entity.path
 import ru.dimsuz.way.entity.scheme
 import ru.dimsuz.way.entity.toService
 
@@ -127,9 +128,4 @@ private fun NodeScheme.toCollectingService(
 
 private fun entry(key: String): BackStackEntry {
   return BackStackEntry(NodeKey(key))
-}
-
-private fun path(s: String): Path {
-  val segments = s.split(".").map { NodeKey(it) }
-  return Path(segments.first(), segments.drop(1))
 }
