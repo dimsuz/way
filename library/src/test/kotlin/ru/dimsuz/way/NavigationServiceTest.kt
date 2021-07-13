@@ -143,6 +143,64 @@ class NavigationServiceTest : ShouldSpec({
         path("flowA.flowB.B1")
       )
     }
+
+    should("clear back stack when returning back from deeper nested sub-flows") {
+      val commands = mutableListOf<BackStack>()
+      val service = scheme(
+        initial = "flowA",
+        node(
+          "flowA",
+          scheme(
+            initial = "A1",
+            node("A1", on("T", target = "A2")),
+            node("A2", on("T", target = "A3")),
+            node("A3", on("T", target = "flowB")),
+            node(
+              "flowB",
+              scheme(
+                initial = "B1",
+                node("B1", on("T", target = "B2")),
+                node(
+                  "B2",
+                  on("T", target = "flowC"),
+                  on("Z", target = "#flowA.A2"),
+                ),
+                node(
+                  "flowC",
+                  scheme(
+                    initial = "C1",
+                    node("C1", on("T", target = "C2")),
+                    node("C2", on("T", target = "#flowA.flowB.B2")),
+                  )
+                )
+              )
+            ),
+          )
+        ),
+      ).toCollectingService(commands)
+
+      service.sendEvent(Event("T")) // flowA.A1 -> flowA.A2
+      service.sendEvent(Event("T")) // flowA.A2 -> flowA.A3
+      service.sendEvent(Event("T")) // flowA.A3 -> flowA.flowB.B1
+      service.sendEvent(Event("T")) // flowA.flowB.B1 -> flowA.flowB.B2
+      service.sendEvent(Event("T")) // flowA.flowB.B2 -> flowA.flowB.flowC.C1
+      service.sendEvent(Event("T")) // flowA.flowB.flowC.C1 -> flowA.flowB.flowC.C2
+      service.sendEvent(Event("T")) // flowA.flowB.flowC.C2 -> flowA.flowB.B2
+
+      commands.last().shouldContainExactly(
+        path("flowA.A1"), path("flowA.A2"), path("flowA.A3"), path("flowA.flowB.B1"), path("flowA.flowB.B2")
+      )
+
+      service.sendEvent(Event("Z")) // flowA.flowB.B2 -> flowA.A2
+
+      commands.last().shouldContainExactly(
+        path("flowA.A1"), path("flowA.A2")
+      )
+    }
+
+    should("clear back stack only up to closest common parent") {
+      // TODO
+    }
   }
 })
 
