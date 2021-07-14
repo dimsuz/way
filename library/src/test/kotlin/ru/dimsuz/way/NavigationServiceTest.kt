@@ -199,7 +199,49 @@ class NavigationServiceTest : ShouldSpec({
     }
 
     should("clear back stack only up to closest common parent") {
-      // TODO
+      val commands = mutableListOf<BackStack>()
+      val service = scheme(
+        initial = "flowA",
+        node(
+          "flowA",
+          scheme(
+            initial = "A1",
+            node("A1", on("T", target = "A2")),
+            node("A2", on("T", target = "A3")),
+            node("A3", on("T", target = "flowB")),
+            node(
+              "flowB",
+              scheme(
+                initial = "B1",
+                node("B1", on("T", target = "B2")),
+                node(
+                  "B2",
+                  on("T", target = "#flowA.flowC"),
+                ),
+              )
+            ),
+            node(
+              "flowC",
+              scheme(
+                initial = "C1",
+                node("C1"),
+              )
+            )
+          )
+        ),
+      ).toCollectingService(commands)
+
+      service.sendEvent(Event("T")) // flowA.A1 -> flowA.A2
+      service.sendEvent(Event("T")) // flowA.A2 -> flowA.A3
+      service.sendEvent(Event("T")) // flowA.A3 -> flowA.flowB.B1
+      service.sendEvent(Event("T")) // flowA.flowB.B1 -> flowA.flowB.B2
+      service.sendEvent(Event("T")) // flowA.flowB.B2 -> flowA.flowC.C1
+
+      // flowA1 and flowA2 are on the same level, so flowB gets cleared, but parent
+      // flow's states "flowA.S*" remain in back stack
+      commands.last().shouldContainExactly(
+        path("flowA.A1"), path("flowA.A2"), path("flowA.A3"), path("flowA.flowC.C1")
+      )
     }
   }
 })
