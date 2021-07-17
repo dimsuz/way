@@ -1,6 +1,7 @@
 package ru.dimsuz.way.entity
 
 import com.github.michaelbull.result.unwrap
+import com.jakewharton.picnic.TableSectionDsl
 import com.jakewharton.picnic.table
 import ru.dimsuz.way.CommandBuilder
 import ru.dimsuz.way.Event
@@ -21,38 +22,64 @@ data class NodeScheme(
       cellStyle { border = true }
       header {
         row {
-          cell("state")
-          cell("on event")
-          cell("target")
+          cell("STATE")
+          cell("ON EVENT")
+          cell("TARGET")
         }
       }
-      nodes.forEach { (nodeKey, node) ->
-        if (node is SchemeNode.Compound) {
-          row {
-            cell("<compound node>")
-          }
-        } else {
-          val transitions = (node as SchemeNode.Atomic).transitions
-          row {
-            cell(nodeKey) {
-              rowSpan = transitions.size
-            }
-            if (transitions.isNotEmpty()) {
-              cell(transitions.entries.first().key.name)
-              cell(transitions.entries.first().value.key)
-            } else {
-              cell("no transitions")
-            }
-          }
-          transitions.entries.drop(1).forEach { (event, target) ->
-            row {
-              cell(event.name)
-              cell(target.key)
-            }
-          }
+      row {
+        cell("initial")
+        cell(initial) {
+          columnSpan = 2
         }
       }
+      nodes(level = 0, nodes)
     }.toString()
+  }
+
+  private fun TableSectionDsl.nodes(level: Int, nodes: Map<String, SchemeNode>) {
+    nodes.forEach { (nodeKey, node) ->
+      if (node is SchemeNode.Compound) {
+        row {
+          repeat(level) { cell("") }
+          cell(nodeKey)
+          cell("COMPOUND NODE") {
+            columnSpan = level + 3
+          }
+        }
+        row {
+          repeat(level + 1) { cell("") { borderBottom = false } }
+          cell("initial")
+          cell(node.scheme.initial) {
+            columnSpan = level + 2
+          }
+        }
+        nodes(level + 1, node.scheme.nodes)
+      } else {
+        val transitions = (node as SchemeNode.Atomic).transitions
+        row {
+          repeat(level) { cell("") { borderTop = false; borderBottom = false } }
+          cell(nodeKey) {
+            rowSpan = transitions.size
+          }
+          if (transitions.isNotEmpty()) {
+            cell(transitions.entries.first().key.name)
+            cell(transitions.entries.first().value.key)
+          } else {
+            cell("no transitions") {
+              this.columnSpan = 2
+            }
+          }
+        }
+        transitions.entries.drop(1).forEach { (event, target) ->
+          row {
+            repeat(level) { cell("") { borderTop = false; borderBottom = false } }
+            cell(event.name)
+            cell(target.key)
+          }
+        }
+      }
+    }
   }
 }
 
