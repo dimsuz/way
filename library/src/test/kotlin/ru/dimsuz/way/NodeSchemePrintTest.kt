@@ -7,6 +7,7 @@ import ru.dimsuz.way.entity.on
 import ru.dimsuz.way.entity.scheme
 
 class NodeSchemePrintTest : ShouldSpec({
+
   should("correctly print atomic scheme") {
     val scheme = scheme(
       initial = "nodeA",

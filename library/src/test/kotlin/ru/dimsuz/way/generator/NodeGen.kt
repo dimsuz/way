@@ -12,9 +12,9 @@ import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.SchemeNode
 
-fun Arb.Companion.scheme(): Arb<NodeScheme> {
+fun Arb.Companion.scheme(maxLevel: Int = 3): Arb<NodeScheme> {
   return arbitrary { rs ->
-    val nodes = Arb.schemeNodes().next(rs)
+    val nodes = Arb.schemeNodes(maxLevel).next(rs)
     NodeScheme(
       initial = Arb.element(nodes.keys).next(rs),
       nodes = nodes
@@ -22,20 +22,21 @@ fun Arb.Companion.scheme(): Arb<NodeScheme> {
   }
 }
 
-private fun Arb.Companion.schemeNodes(): Arb<Map<String, SchemeNode>> {
+private fun Arb.Companion.schemeNodes(maxLevel: Int): Arb<Map<String, SchemeNode>> {
   return arbitrary { rs ->
     val nodeKeys = Arb.list(Arb.nodeKeyName(), range = 1..30).next(rs)
-    val nodes = mutableMapOf<String, NodeTransitions>()
-    nodeKeys.forEach { nodeKey ->
+    val atomicNodes = mutableMapOf<String, NodeTransitions>()
+    val compoundNodeKeys = if (maxLevel > 0 && nodeKeys.size >= 3) {
+      nodeKeys.take(rs.random.nextInt(0, nodeKeys.size / 3))
+    } else emptyList()
+    val atomicNodeKeys = nodeKeys.minus(compoundNodeKeys)
+    atomicNodeKeys.forEach { nodeKey ->
       if (ENABLE_SCHEME_GEN_DEBUG) {
         println("generating transitions for node $nodeKey")
       }
       // better have more states than events, otherwise it would be hard to
       // find a combination of transitions which doesn't introduce a cycle
       val events = Arb.list(Arb.eventName(), range = 0..nodeKeys.size / 2).next(rs)
-      // TODO split nodeKeys into atomicNodeKeys and compoundNodeKeys
-      //   include all of them into potentialTargets, but generate transitions only
-      //   for atomicNodeKeys. For compoundNodeKeys nest Arb.scheme() - et voila!
       val potentialTargets = nodeKeys.minus(nodeKey)
       val transitions = mutableMapOf<String, String>()
       var attemptsRemaining = 15
@@ -43,7 +44,7 @@ private fun Arb.Companion.schemeNodes(): Arb<Map<String, SchemeNode>> {
         while (attemptsRemaining > 0) {
           val target = Arb.element(potentialTargets).next(rs)
           transitions[event] = target
-          if (hasCycle(nodes, nodeKey, transitions)) {
+          if (hasCycle(atomicNodes, nodeKey, transitions)) {
             transitions.remove(event)
             attemptsRemaining -= 1
           } else break
@@ -55,11 +56,17 @@ private fun Arb.Companion.schemeNodes(): Arb<Map<String, SchemeNode>> {
           break
         }
       }
-      nodes[nodeKey] = transitions
+      atomicNodes[nodeKey] = transitions
     }
-    nodes.mapValues { (_, transitions) ->
-      SchemeNode.Atomic(transitions = transitions.entries.associate { Event(it.key) to NodeKey(it.value) })
-    }
+    atomicNodes
+      .mapValues { (_, transitions) ->
+        SchemeNode.Atomic(transitions = transitions.entries.associate { Event(it.key) to NodeKey(it.value) })
+      }
+      .plus(
+        compoundNodeKeys.map { key ->
+          key to SchemeNode.Compound(Arb.scheme(maxLevel - 1).next(rs))
+        }
+      )
   }
 }
 
