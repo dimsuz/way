@@ -26,8 +26,11 @@ fun Arb.Companion.scheme(): Arb<NodeScheme> {
 private fun Arb.Companion.schemeNodes(): Arb<Map<String, SchemeNode>> {
   return arbitrary { rs ->
     val nodeKeys = Arb.list(Arb.nodeKeyName(), range = 1..30).next(rs)
-    val nodes = mutableMapOf<String, SchemeNode>()
+    val nodes = mutableMapOf<String, NodeTransitions>()
     nodeKeys.forEach { nodeKey ->
+      if (ENABLE_SCHEME_GEN_DEBUG) {
+        println("generating transitions for node $nodeKey")
+      }
       // better have more states than events, otherwise it would be hard to
       // find a combination of transitions which doesn't introduce a cycle
       val events = Arb.list(Arb.eventName(), range = 0..nodeKeys.size / 2).next(rs)
@@ -36,28 +39,77 @@ private fun Arb.Companion.schemeNodes(): Arb<Map<String, SchemeNode>> {
       //   for atomicNodeKeys. For compoundNodeKeys nest Arb.scheme() - et voila!
       val potentialTargets = nodeKeys.minus(nodeKey)
       val transitions = mutableMapOf<String, String>()
-      var attemptsRemaining = 5
+      var attemptsRemaining = 15
       for (event in events) {
         while (attemptsRemaining > 0) {
           val target = Arb.element(potentialTargets).next(rs)
           transitions[event] = target
-          if (transitions.hasCycle(nodeKeys)) {
+          if (hasCycle(nodes, nodeKey, transitions)) {
             transitions.remove(event)
             attemptsRemaining -= 1
-          }
+          } else break
         }
         if (attemptsRemaining <= 0) {
-          println("attempts exhausted while trying to find non-cycling targets for node $nodeKey, moving on")
+          if (ENABLE_SCHEME_GEN_DEBUG) {
+            println("attempts exhausted while trying to find non-cycling targets for node $nodeKey, moving on")
+          }
           break
         }
       }
+      nodes[nodeKey] = transitions
     }
-    emptyMap()
+    nodes.mapValues { (_, transitions) ->
+      SchemeNode.Atomic(transitions = transitions.entries.associate { Event(it.key) to NodeKey(it.value) })
+    }
   }
 }
 
-private fun Map<String, String>.hasCycle(nodeKeys: List<String>): Boolean {
-  TODO()
+typealias NodeTransitions = Map<String, String>
+
+private fun hasCycle(nodes: Map<String, NodeTransitions>, newKey: String, newKeyTransitions: NodeTransitions): Boolean {
+  val newNodes = nodes.plus(newKey to newKeyTransitions)
+  val adjacent = newNodes.mapValues { (_, transitions) -> transitions.values }
+  val cycle = dfsCycleSearch(adjacent)
+  return if (cycle != null) {
+    if (ENABLE_SCHEME_GEN_DEBUG) {
+      println("cycle detected in nodes ${cycle.first} → ${cycle.second}")
+    }
+    true
+  } else false
+}
+
+private fun dfsCycleSearch(adjacent: Map<String, Collection<String>>): Pair<String, String>? {
+  val discovered = mutableSetOf<String>()
+  val finished = mutableSetOf<String>()
+
+  fun dfsVisit(key: String): Pair<String, String>? {
+    discovered.add(key)
+
+    adjacent[key].orEmpty().forEach { key1 ->
+      if (key1 in discovered) {
+        return key to key1
+      }
+      if (key1 !in finished) {
+        dfsVisit(key1)
+      }
+    }
+
+    discovered.remove(key)
+    finished.add(key)
+
+    return null
+  }
+
+  adjacent.keys.forEach { key ->
+    if (key !in discovered && key !in finished) {
+      val cycle = dfsVisit(key)
+      if (cycle != null) {
+        return cycle
+      }
+    }
+  }
+
+  return null
 }
 
 private fun Arb.Companion.nodeKeyName() = Arb.stringPattern("[a-z]{5,8}")
@@ -70,3 +122,5 @@ fun Arb.Companion.nodeKey(): Arb<NodeKey> {
 fun Arb.Companion.event(): Arb<Event> {
   return Arb.eventName().map { Event(it) }
 }
+
+private const val ENABLE_SCHEME_GEN_DEBUG = false
