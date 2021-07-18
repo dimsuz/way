@@ -1,6 +1,7 @@
 package ru.dimsuz.way.generator
 
 import io.kotest.property.Arb
+import io.kotest.property.Shrinker
 import io.kotest.property.arbitrary.ListShrinker
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.element
@@ -15,7 +16,7 @@ import ru.dimsuz.way.entity.SchemeNode
 import kotlin.random.nextInt
 
 fun Arb.Companion.scheme(maxLevel: Int = 3): Arb<NodeScheme> {
-  return arbitrary { rs ->
+  return arbitrary(shrinker = SchemeShrinker()) { rs ->
     val nodes = Arb.schemeNodes(maxLevel).next(rs)
     NodeScheme(
       initial = Arb.element(nodes.keys).next(rs),
@@ -163,6 +164,27 @@ fun Arb.Companion.nodeKey(): Arb<NodeKey> {
 
 fun Arb.Companion.event(): Arb<Event> {
   return Arb.eventName().map { Event(it) }
+}
+
+private class SchemeShrinker : Shrinker<NodeScheme> {
+  override fun shrink(value: NodeScheme): List<NodeScheme> {
+    return when {
+      value.nodes.isEmpty() -> emptyList()
+      value.nodes.size == 1 -> emptyList()
+      else -> {
+        listOfNotNull(
+          // only the initial
+          value.nodes.filter { it.key == value.initial },
+          // first non-initial dropped
+          value.nodes.minus(value.nodes.keys.first { it != value.initial }),
+          // last non-initial dropped
+          value.nodes.minus(value.nodes.keys.last { it != value.initial }),
+          // half of the nodes
+          value.nodes.minus(value.nodes.keys.toList().filter { it != value.initial }.dropLast(value.nodes.size / 2)),
+        ).map { NodeScheme(value.initial, it) }
+      }
+    }
+  }
 }
 
 private const val ENABLE_SCHEME_GEN_DEBUG = false
