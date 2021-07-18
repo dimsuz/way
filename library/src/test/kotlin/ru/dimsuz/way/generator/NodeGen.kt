@@ -1,6 +1,7 @@
 package ru.dimsuz.way.generator
 
 import io.kotest.property.Arb
+import io.kotest.property.arbitrary.ListShrinker
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.list
@@ -11,6 +12,7 @@ import ru.dimsuz.way.Event
 import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.SchemeNode
+import kotlin.random.nextInt
 
 fun Arb.Companion.scheme(maxLevel: Int = 3): Arb<NodeScheme> {
   return arbitrary { rs ->
@@ -19,6 +21,40 @@ fun Arb.Companion.scheme(maxLevel: Int = 3): Arb<NodeScheme> {
       initial = Arb.element(nodes.keys).next(rs),
       nodes = nodes
     )
+  }
+}
+
+/**
+ * Generates a sequence of events which represent a valid set of transitions.
+ * Events are selected so that each of them will be valid for the node which is reached
+ * by sending a sequence of events preceding the current one.
+ * That implies that each event will transition to a new node, never staying on the same one.
+ */
+fun Arb.Companion.eventSequence(scheme: NodeScheme): Arb<List<Event>> {
+  return arbitrary(shrinker = ListShrinker(1..50)) { rs ->
+    val count = rs.random.nextInt(1..50)
+    val events = mutableListOf<Event>()
+    var containingNode = SchemeNode.Compound(scheme)
+    var currentNode = scheme.nodes[scheme.initial]
+    while (events.size < count) {
+      when (currentNode) {
+        is SchemeNode.Atomic -> {
+          if (currentNode.transitions.isEmpty()) {
+            break
+          }
+          val transition = Arb.element(currentNode.transitions.entries).next(rs)
+          events.add(transition.key)
+          currentNode = containingNode.scheme.nodes[transition.value.key]
+            ?: error("failed to find node '${transition.value.key}' in the containing node")
+        }
+        is SchemeNode.Compound -> {
+          containingNode = currentNode
+          currentNode = currentNode.scheme.nodes[currentNode.scheme.initial]
+            ?: error("no initial node definition found for '${currentNode.scheme.initial}'")
+        }
+      }
+    }
+    events
   }
 }
 
