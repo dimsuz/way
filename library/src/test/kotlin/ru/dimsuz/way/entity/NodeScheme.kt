@@ -19,7 +19,7 @@ data class NodeScheme(
 
   override fun toString(): String {
     return table {
-      cellStyle { border = true }
+      cellStyle { border = true; paddingLeft = 1; paddingRight = 1 }
       header {
         row {
           cell("STATE")
