@@ -22,14 +22,21 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       val transition = TransitionEnv<S, A, R>(path).apply(transitionSpec)
       val targetPath = transition.resolveTarget()
         ?: error("expected transition target for path = $path")
-      when (val targetNode = root.findChild(targetPath)) {
-        is FlowNode<*, *, *> -> targetPath append targetNode.initial
-        is ScreenNode -> targetPath
-        null -> error("machine has no node \"$targetPath\"")
-      }
+      root.fullyResolvePath(targetPath)
     } else {
       path
     }
+  }
+}
+
+// TODO replace this with fold + traverse and/or give it a clearer name
+private fun FlowNode<*, *, *>.fullyResolvePath(targetPath: Path): Path {
+  return when (val targetNode = this.findChild(targetPath)) {
+    is FlowNode<*, *, *> -> {
+      fullyResolvePath(targetPath append targetNode.initial)
+    }
+    is ScreenNode -> targetPath
+    null -> error("machine has no node \"$targetPath\"")
   }
 }
 

@@ -145,7 +145,7 @@ class NavigationMachineTest : ShouldSpec({
 
       should("perform number of distinct transitions equal to number of valid events") {
         val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
-        checkAll(config = PropTestConfig(seed = -5110717371309207340), schemeWithEventsGen) { (scheme, events) ->
+        checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
           val machine = NavigationMachine(scheme.toFlowNode(Unit))
           var currentEventIndex = 0
           val states = mutableListOf<Path>()
@@ -214,7 +214,9 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
     }
     val prev = currentPath
     currentPath = this.transition(currentPath, nextEvent)
-    println("$prev x ${nextEvent.name} -> $currentPath")
+    if (ENABLE_TRANSITION_LOG) {
+      println("$prev x ${nextEvent.name} -> $currentPath")
+    }
     onTransition(prev, nextEvent, currentPath)
   }
 }
