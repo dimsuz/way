@@ -4,15 +4,18 @@ import io.kotest.property.Arb
 import io.kotest.property.Shrinker
 import io.kotest.property.arbitrary.ListShrinker
 import io.kotest.property.arbitrary.arbitrary
+import io.kotest.property.arbitrary.az
 import io.kotest.property.arbitrary.element
+import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.list
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
-import io.kotest.property.arbitrary.stringPattern
+import io.kotest.property.arbitrary.string
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.SchemeNode
+import java.util.Locale
 import kotlin.random.nextInt
 
 fun Arb.Companion.scheme(maxLevel: Int = 3): Arb<NodeScheme> {
@@ -155,8 +158,8 @@ private fun dfsCycleSearch(adjacent: Map<String, Collection<String>>): Pair<Stri
   return null
 }
 
-private fun Arb.Companion.nodeKeyName() = Arb.stringPattern("[a-z]{5,8}")
-private fun Arb.Companion.eventName() = Arb.stringPattern("[A-Z]{5,8}")
+private fun Arb.Companion.nodeKeyName() = Arb.string(5..8, Arb.az())
+private fun Arb.Companion.eventName() = Arb.string(5..8, Arb.az()).map { it.uppercase(Locale.getDefault()) }
 
 fun Arb.Companion.nodeKey(): Arb<NodeKey> {
   return Arb.nodeKeyName().map { NodeKey(it) }
