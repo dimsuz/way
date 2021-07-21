@@ -7,10 +7,10 @@ import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.az
 import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.filter
-import io.kotest.property.arbitrary.list
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.string
+import io.kotest.property.arbitrary.take
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.entity.NodeScheme
@@ -64,7 +64,7 @@ fun Arb.Companion.eventSequence(scheme: NodeScheme): Arb<List<Event>> {
 
 private fun Arb.Companion.schemeNodes(maxLevel: Int): Arb<Map<String, SchemeNode>> {
   return arbitrary { rs ->
-    val nodeKeys = Arb.list(Arb.nodeKeyName(), range = 1..30).next(rs)
+    val nodeKeys = Arb.nodeKeyName().take(rs.random.nextInt(1..30), rs).toList()
     val atomicNodes = mutableMapOf<String, NodeTransitions>()
     val compoundNodeKeys = if (maxLevel > 0 && nodeKeys.size >= 3) {
       nodeKeys.take(rs.random.nextInt(0, nodeKeys.size / 3))
@@ -76,13 +76,13 @@ private fun Arb.Companion.schemeNodes(maxLevel: Int): Arb<Map<String, SchemeNode
       }
       // better have more states than events, otherwise it would be hard to
       // find a combination of transitions which doesn't introduce a cycle
-      val events = Arb.list(Arb.eventName(), range = 0..nodeKeys.size / 2).next(rs)
+      val events = Arb.eventName().take(rs.random.nextInt(0..nodeKeys.size / 2), rs)
       val potentialTargets = nodeKeys.minus(nodeKey)
       val transitions = mutableMapOf<String, String>()
       var attemptsRemaining = 15
       for (event in events) {
         while (attemptsRemaining > 0) {
-          val target = Arb.element(potentialTargets).next(rs)
+          val target = potentialTargets.random(rs.random)
           transitions[event] = target
           if (hasCycle(atomicNodes, nodeKey, transitions)) {
             transitions.remove(event)
@@ -98,23 +98,23 @@ private fun Arb.Companion.schemeNodes(maxLevel: Int): Arb<Map<String, SchemeNode
       }
       atomicNodes[nodeKey] = transitions
     }
-    atomicNodes
-      .mapValues { (_, transitions) ->
-        SchemeNode.Atomic(transitions = transitions.entries.associate { Event(it.key) to NodeKey(it.value) })
-      }
-      .plus(
-        compoundNodeKeys.map { key ->
-          key to SchemeNode.Compound(Arb.scheme(maxLevel - 1).next(rs))
-        }
-      )
+    val scheme = HashMap<String, SchemeNode>(atomicNodes.size + compoundNodeKeys.size)
+    atomicNodes.forEach { (key, transitions) ->
+      scheme[key] = SchemeNode.Atomic(transitions.entries.associate { Event(it.key) to NodeKey(it.value) })
+    }
+    compoundNodeKeys.forEach { key ->
+      scheme[key] = SchemeNode.Compound(Arb.scheme(maxLevel - 1).next(rs))
+    }
+    scheme
   }
 }
 
 typealias NodeTransitions = Map<String, String>
 
 private fun hasCycle(nodes: Map<String, NodeTransitions>, newKey: String, newKeyTransitions: NodeTransitions): Boolean {
-  val newNodes = nodes.plus(newKey to newKeyTransitions)
-  val adjacent = newNodes.mapValues { (_, transitions) -> transitions.values }
+  val adjacent = HashMap<String, Collection<String>>(nodes.size + 1)
+  nodes.forEach { (s, map) -> adjacent[s] = map.values }
+  adjacent[newKey] = newKeyTransitions.values
   val cycle = dfsCycleSearch(adjacent)
   return if (cycle != null) {
     if (ENABLE_SCHEME_GEN_DEBUG) {
@@ -125,8 +125,8 @@ private fun hasCycle(nodes: Map<String, NodeTransitions>, newKey: String, newKey
 }
 
 private fun dfsCycleSearch(adjacent: Map<String, Collection<String>>): Pair<String, String>? {
-  val discovered = mutableSetOf<String>()
-  val finished = mutableSetOf<String>()
+  val discovered = HashSet<String>(adjacent.size)
+  val finished = HashSet<String>(adjacent.size)
 
   fun dfsVisit(key: String): Pair<String, String>? {
     discovered.add(key)
