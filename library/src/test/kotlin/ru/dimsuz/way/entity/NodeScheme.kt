@@ -11,6 +11,8 @@ import ru.dimsuz.way.NavigationMachine
 import ru.dimsuz.way.NavigationService
 import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.Path
+import ru.dimsuz.way.ScreenNodeBuilder
+import ru.dimsuz.way.SubFlowBuilder
 
 data class NodeScheme(
   val initial: String,
@@ -109,7 +111,11 @@ fun path(s: String): Path {
   return Path(segments.first(), segments.drop(1))
 }
 
-fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(initialState: S): FlowNode<S, A, R> {
+fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(
+  initialState: S,
+  modifyScreenNode: ((ScreenNodeBuilder<*, *, *>) -> Unit)? = null,
+  modifySubFlowNode: ((FlowNode<Any, Any, Any>, SubFlowBuilder<*, *, *, Any>) -> Unit)? = null,
+): FlowNode<S, A, R> {
   return FlowNodeBuilder<S, A, R>()
     .setInitial(NodeKey(initial))
     .apply {
@@ -134,14 +140,18 @@ fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(initialState: S): FlowNode
                   }
                 }
               }
+              modifyScreenNode?.invoke(builder)
               builder.build()
             }
           }
           is SchemeNode.Compound -> {
             addFlowNode<Any>(NodeKey(nodeKey)) { builder ->
-              builder.of(
-                node.scheme.toFlowNode<Any, Any, Any>(Unit)
-              ).build().unwrap()
+              val flow = node.scheme.toFlowNode<Any, Any, Any>(Unit, modifyScreenNode, modifySubFlowNode)
+              builder
+                .of(flow)
+                .apply { modifySubFlowNode?.invoke(flow, this) }
+                .build()
+                .unwrap()
             }
           }
         }

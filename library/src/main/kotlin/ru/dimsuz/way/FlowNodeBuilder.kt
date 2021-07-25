@@ -20,7 +20,7 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
         .filterValues { it is ScreenNode }
         .mapValuesTo(mutableMapOf()) { (_, node) -> { node as ScreenNode } },
       flowBuildActions = node.children
-        .filterValues { it is ScreenNode }
+        .filterValues { it is FlowNode<*, *, *> }
         .mapValuesTo(mutableMapOf()) { (_, node) -> { node as FlowNode<*, *, *> } },
     )
   }
@@ -30,6 +30,11 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
   }
 
   fun onExit(action: ActionEnv<S, A>.() -> Unit): FlowNodeBuilder<S, A, R> {
+    return this
+  }
+
+  fun on(event: Event, transition: TransitionEnv<S, A, R>.() -> Unit): FlowNodeBuilder<S, A, R> {
+    draft.eventTransitions[event] = transition as (TransitionEnv<*, *, *>) -> Unit
     return this
   }
 
@@ -73,7 +78,9 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
       FlowNode(
         initial = initial.bind(),
         children = children,
-        eventTransitions = emptyMap()
+        eventTransitions = emptyMap(),
+        onEntry = null,
+        onExit = null,
       )
     }
   }

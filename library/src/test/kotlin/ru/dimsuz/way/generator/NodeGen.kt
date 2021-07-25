@@ -18,7 +18,7 @@ import ru.dimsuz.way.entity.SchemeNode
 import java.util.Locale
 import kotlin.random.nextInt
 
-fun Arb.Companion.scheme(maxLevel: Int = 3): Arb<NodeScheme> {
+fun Arb.Companion.scheme(maxLevel: Int = 2): Arb<NodeScheme> {
   return arbitrary(shrinker = SchemeShrinker()) { rs ->
     val nodes = Arb.schemeNodes(maxLevel).next(rs)
     NodeScheme(

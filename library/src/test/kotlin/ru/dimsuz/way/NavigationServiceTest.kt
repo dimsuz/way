@@ -1,16 +1,26 @@
 package ru.dimsuz.way
 
+import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.ints.shouldBeGreaterThan
+import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.flatMap
+import io.kotest.property.arbitrary.map
+import io.kotest.property.checkAll
 import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.node
 import ru.dimsuz.way.entity.on
 import ru.dimsuz.way.entity.path
 import ru.dimsuz.way.entity.scheme
+import ru.dimsuz.way.entity.toFlowNode
 import ru.dimsuz.way.entity.toService
+import ru.dimsuz.way.generator.eventSequence
+import ru.dimsuz.way.generator.scheme
 
 class NavigationServiceTest : ShouldSpec({
-  context("unspecified") {
+  context("back stack rules") {
     should("push initial route") {
       val commands = mutableListOf<BackStack>()
       scheme(
@@ -242,6 +252,160 @@ class NavigationServiceTest : ShouldSpec({
       commands.last().shouldContainExactly(
         path("flowA.A1"), path("flowA.A2"), path("flowA.A3"), path("flowA.flowC.C1")
       )
+    }
+  }
+
+  context("entry/exit actions") {
+    should("execute on each screen node") {
+      val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
+      checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+        // Arrange
+        var screenNodeEntryEventCount = 0
+        var screenNodeExitEventCount = 0
+        val root = scheme
+          .toFlowNode<Unit, Unit, Unit>(
+            Unit,
+            modifyScreenNode = { builder ->
+              builder
+                .onEntry { screenNodeEntryEventCount++ }
+                .onExit { screenNodeExitEventCount++ }
+            }
+          )
+        val service = NavigationService(NavigationMachine(root), { _, _ -> }, { })
+        service.start()
+
+        // Act
+        events.forEach {
+          service.sendEvent(it)
+        }
+
+        // Assert
+        screenNodeEntryEventCount shouldBeGreaterThan 0
+        screenNodeExitEventCount shouldBe screenNodeEntryEventCount - 1
+      }
+    }
+
+    should("execute number of times corresponding to the number of sent events") {
+      // If N events get sent, then this means N transitions will be done (at least in the "generated" scheme case)
+      // plus 1 initial transition → N + 1
+      val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
+      checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+        // Arrange
+        var screenNodeEntryEventCount = 0
+        var screenNodeExitEventCount = 0
+        val root = scheme
+          .toFlowNode<Unit, Unit, Unit>(
+            Unit,
+            modifyScreenNode = { builder ->
+              builder
+                .onEntry { screenNodeEntryEventCount++ }
+                .onExit { screenNodeExitEventCount++ }
+            }
+          )
+        val service = NavigationService(NavigationMachine(root), { _, _ -> }, { })
+        service.start()
+
+        // Act
+        events.forEach {
+          service.sendEvent(it)
+        }
+
+        // Assert
+        // number of events sent + initial node entry
+        screenNodeEntryEventCount shouldBe events.size + 1
+        // not counting exit from the last transitioned-to node, as it didn't happen
+        screenNodeExitEventCount shouldBe events.size
+      }
+    }
+
+    should("execute entry events on each flow node") {
+      val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
+      checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+        // Arrange
+        var nodeEntryEventCount = 0
+        val root = scheme
+          .toFlowNode<Unit, Unit, Unit>(
+            Unit,
+            modifySubFlowNode = { flowNode, builder ->
+              builder
+                .of(
+                  flowNode.newBuilder()
+                    .onEntry { nodeEntryEventCount++ }
+                    .build(Unit)
+                    .unwrap()
+                )
+                .build()
+                .unwrap()
+            }
+          )
+          .newBuilder()
+          .onEntry { nodeEntryEventCount++ }
+          .build(Unit)
+          .unwrap()
+
+        var currentBackStack: BackStack? = null
+        val service = NavigationService(NavigationMachine(root), { _, stack -> currentBackStack = stack }, { })
+        service.start()
+
+        // Act
+        events.forEach {
+          service.sendEvent(it)
+        }
+        // this will bubble up to the very top and transition to final_screen
+        service.sendEvent(Event("FINISH"))
+
+        // Assert
+        nodeEntryEventCount shouldBe currentBackStack?.last()?.size
+      }
+    }
+
+    should("execute on each flow node") {
+      val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
+      checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+        // Arrange
+        var nodeEntryEventCount = 0
+        var nodeExitEventCount = 0
+        val root = scheme
+          .toFlowNode<Unit, Unit, Unit>(
+            Unit,
+            modifySubFlowNode = { flowNode, builder ->
+              builder
+                .of(
+                  flowNode.newBuilder()
+                    .onEntry { nodeEntryEventCount++ }
+                    .onExit { nodeExitEventCount++ }
+                    .build(Unit)
+                    .unwrap()
+                )
+                .build()
+                .unwrap()
+            }
+          )
+          .newBuilder()
+          // add a final screen which will cause all child flows to exit
+          .addScreenNode(NodeKey("final_screen")) { builder -> builder.build() }
+          .on(Event("FINISH")) { navigateTo(NodeKey("final_screen")) }
+          .onEntry { nodeEntryEventCount++ }
+          .onExit { nodeExitEventCount++ }
+          .build(Unit)
+          .unwrap()
+
+        val service = NavigationService(NavigationMachine(root), { _, _ -> }, { })
+        service.start()
+
+        // Act
+        events.forEach {
+          service.sendEvent(it)
+        }
+        // this will bubble up to the very top and transition to final_screen
+        service.sendEvent(Event("FINISH"))
+
+        // Assert
+        // number of events sent + initial node entry
+        nodeEntryEventCount shouldBe events.size + 1
+        // not counting exit from the last transitioned-to node, as it didn't happen
+        nodeExitEventCount shouldBe events.size
+      }
     }
   }
 })

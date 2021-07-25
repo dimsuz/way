@@ -2,12 +2,16 @@ package ru.dimsuz.way
 
 class ScreenNodeBuilder<S : Any, A : Any, R : Any> {
   private val eventTransitions = mutableMapOf<Event, (TransitionEnv<*, *, *>) -> Unit>()
+  private var onEntry: ((ActionEnv<*, *>) -> Unit)? = null
+  private var onExit: ((ActionEnv<*, *>) -> Unit)? = null
 
   fun onEntry(action: ActionEnv<S, A>.() -> Unit): ScreenNodeBuilder<S, A, R> {
+    onEntry = action as (ActionEnv<*, *>) -> Unit
     return this
   }
 
   fun onExit(action: ActionEnv<S, A>.() -> Unit): ScreenNodeBuilder<S, A, R> {
+    onExit = action as (ActionEnv<*, *>) -> Unit
     return this
   }
 
@@ -18,7 +22,9 @@ class ScreenNodeBuilder<S : Any, A : Any, R : Any> {
 
   fun build(): ScreenNode {
     return ScreenNode(
-      eventTransitions = eventTransitions
+      eventTransitions = eventTransitions,
+      onEntry = onEntry,
+      onExit = onExit
     )
   }
 }

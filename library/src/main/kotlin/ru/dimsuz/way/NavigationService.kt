@@ -13,8 +13,9 @@ class NavigationService<T : Any>(
       error("not started")
     }
     val previousPath = backStack.last()
-    val newPath = machine.transition(backStack.last(), event)
-    val newBackStack = recordTransition(backStack, previousPath, newPath)
+    val transitionResult = machine.transition(backStack.last(), event)
+    val newBackStack = recordTransition(backStack, previousPath, transitionResult.path)
+    transitionResult.actions?.invoke()
     if (backStack != newBackStack) {
       val oldBackStack = backStack
       backStack = newBackStack
@@ -24,6 +25,8 @@ class NavigationService<T : Any>(
 
   fun start() {
     backStack = listOf(machine.initial)
+    val transitionResult = machine.transitionToInitial()
+    transitionResult.actions?.invoke()
     onCommand(commandBuilder(emptyList(), backStack))
   }
 

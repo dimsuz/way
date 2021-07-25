@@ -4,6 +4,7 @@ import com.github.michaelbull.result.getError
 import com.github.michaelbull.result.unwrap
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.flatMap
@@ -166,6 +167,40 @@ class NavigationMachineTest : ShouldSpec({
       }
     }
   }
+
+  context("entry/exit actions") {
+    should("execute entry/exit actions on screen nodes") {
+      val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
+      checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+        // Arrange
+        var screenNodeEntryEventCount = 0
+        var screenNodeExitEventCount = 0
+        val root = scheme
+          .toFlowNode<Unit, Unit, Unit>(
+            Unit,
+            modifyScreenNode = { builder ->
+              builder
+                .onEntry { screenNodeEntryEventCount++ }
+                .onExit { screenNodeExitEventCount++ }
+            }
+          )
+        val machine = NavigationMachine(root)
+        var currentEventIndex = 0
+
+        // Act
+        machine.runTransitionSequence(
+          nextEventSelector = { events.getOrNull(currentEventIndex) },
+          onTransition = { _: Path, _: Event, _: Path ->
+            currentEventIndex += 1
+          }
+        )
+
+        // Assert
+        screenNodeEntryEventCount shouldBeGreaterThan 0
+        screenNodeExitEventCount shouldBe screenNodeEntryEventCount - 1
+      }
+    }
+  }
 })
 
 private data class TestTransition(
@@ -197,8 +232,9 @@ private fun runTests(
 
 private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransitionSequence(
   nextEventSelector: (path: Path) -> Event?,
-  onTransition: (prev: Path, event: Event, next: Path) -> Unit
-): Path {
+  onTransition: (prev: Path, event: Event, next: Path) -> Unit,
+  executeActions: Boolean = true,
+): TransitionResult {
   if (ENABLE_TRANSITION_LOG) {
     println("=== starting transition sequence ===")
   }
@@ -209,13 +245,15 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
       if (ENABLE_TRANSITION_LOG) {
         println("=== ended transition sequence ===")
       }
-      return currentPath
+      return TransitionResult(currentPath, actions = null)
     }
     val prev = currentPath
-    currentPath = this.transition(currentPath, nextEvent)
+    val transitionResult = this.transition(currentPath, nextEvent)
+    currentPath = transitionResult.path
     if (ENABLE_TRANSITION_LOG) {
       println("$prev x ${nextEvent.name} -> $currentPath")
     }
+    if (executeActions) transitionResult.actions?.invoke()
     onTransition(prev, nextEvent, currentPath)
   }
 }
