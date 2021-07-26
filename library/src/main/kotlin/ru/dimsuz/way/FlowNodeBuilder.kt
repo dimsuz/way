@@ -26,10 +26,12 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
   }
 
   fun onEntry(action: ActionEnv<S, A>.() -> Unit): FlowNodeBuilder<S, A, R> {
+    draft.onEntry = action as (ActionEnv<*, *>) -> Unit
     return this
   }
 
   fun onExit(action: ActionEnv<S, A>.() -> Unit): FlowNodeBuilder<S, A, R> {
+    draft.onExit = action as (ActionEnv<*, *>) -> Unit
     return this
   }
 
@@ -79,8 +81,8 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
         initial = initial.bind(),
         children = children,
         eventTransitions = emptyMap(),
-        onEntry = null,
-        onExit = null,
+        onEntry = draft.onEntry,
+        onExit = draft.onExit,
       )
     }
   }

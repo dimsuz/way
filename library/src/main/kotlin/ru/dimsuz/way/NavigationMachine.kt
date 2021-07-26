@@ -34,14 +34,15 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       val targetPath = transition.resolveTarget()
         ?: error("expected transition target for path = $path")
       val resolvedTargetPath = root.fullyResolvePath(targetPath)
-      val targetNode = root.findChild(resolvedTargetPath)
-        ?: error("no node at $resolvedTargetPath found")
 
       if (node.onExit != null) {
         actions.add({ node.onExit?.invoke(transitionEnv) })
       }
-      if (targetNode.onEntry != null) {
-        actions.add({ targetNode.onEntry?.invoke(transitionEnv) })
+      val pathNodes = root.findChildrenAlongPath(resolvedTargetPath)
+      pathNodes.forEach { n ->
+        if (n.onEntry != null) {
+          actions.add({ n.onEntry?.invoke(transitionEnv) })
+        }
       }
 
       TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() }?.join())
@@ -85,4 +86,23 @@ private fun FlowNode<*, *, *>.findChild(path: Path): Node? {
   } else {
     node
   }
+}
+
+private fun FlowNode<*, *, *>.findChildrenAlongPath(path: Path): List<Node> {
+  var p: Path? = path
+  var n: FlowNode<*, *, *>? = this
+
+  val nodes = mutableListOf<Node>()
+
+  while (p != null && n != null) {
+    val key = n.children.keys.find { it == p!!.firstSegment } ?: return emptyList()
+    val node = n.children[key] ?: return emptyList()
+    nodes.add(node)
+    p = p.tail
+    n = when (node) {
+      is FlowNode<*, *, *> -> node
+      is ScreenNode -> null
+    }
+  }
+  return nodes
 }

@@ -5,4 +5,6 @@ internal data class FlowNodeDraft<S : Any, A : Any, R : Any>(
   var eventTransitions: MutableMap<Event, (TransitionEnv<*, *, *>) -> Unit> = mutableMapOf(),
   val screenBuildActions: MutableMap<NodeKey, (ScreenNodeBuilder<S, A, R>) -> ScreenNode> = mutableMapOf(),
   val flowBuildActions: MutableMap<NodeKey, (SubFlowBuilder<S, A, R, *>) -> FlowNode<*, *, *>> = mutableMapOf(),
+  var onEntry: ((ActionEnv<*, *>) -> Unit)? = null,
+  var onExit: ((ActionEnv<*, *>) -> Unit)? = null
 )
