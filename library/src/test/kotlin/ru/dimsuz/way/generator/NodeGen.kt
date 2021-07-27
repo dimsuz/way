@@ -9,6 +9,7 @@ import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
+import io.kotest.property.arbitrary.single
 import io.kotest.property.arbitrary.string
 import io.kotest.property.arbitrary.take
 import ru.dimsuz.way.Event
@@ -24,6 +25,45 @@ fun Arb.Companion.scheme(maxLevel: Int = 2): Arb<NodeScheme> {
     NodeScheme(
       initial = Arb.element(nodes.keys).next(rs),
       nodes = nodes
+    )
+  }
+}
+
+fun Arb.Companion.schemeWithEventSequence(maxLevel: Int = 2): Arb<Pair<NodeScheme, List<Event>>> {
+  return arbitrary(shrinker = SchemeWithEventShrinker()) { rs ->
+    val scheme = Arb.scheme(maxLevel).single(rs)
+    val eventSequence = Arb.eventSequence(scheme).single(rs)
+    scheme to eventSequence
+  }
+}
+
+private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> {
+  private val eventShrinker = ListShrinker<Event>(1..50)
+  private val schemeShrinker = SchemeShrinker()
+
+  override fun shrink(value: Pair<NodeScheme, List<Event>>): List<Pair<NodeScheme, List<Event>>> {
+    val events = value.second
+    val scheme = value.first
+    return listOf(
+      scheme.filterNodesWithEvents(events) to events
+    ).plus(eventShrinker.shrink(events).map { scheme.filterNodesWithEvents(it) to it })
+  }
+
+  private fun NodeScheme.filterNodesWithEvents(events: List<Event>): NodeScheme {
+    // TODO also do not filter node if it's the target node of any of event in "events"!
+    //  (collect all of them and pass as an argument)
+    return NodeScheme(
+      initial = initial,
+      nodes = this.nodes.entries.mapNotNull { (key, node) ->
+        when (node) {
+          is SchemeNode.Atomic -> if (node.transitions.keys.any { events.contains(it) }) (key to node) else null
+          is SchemeNode.Compound -> {
+            val mapped = node.scheme.filterNodesWithEvents(events)
+            if (mapped.nodes.isNotEmpty()) (key to SchemeNode.Compound(mapped)) else null
+          }
+        }
+      }
+        .toMap()
     )
   }
 }

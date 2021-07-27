@@ -19,7 +19,13 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     val node = root.findChild(initial)
       ?: error("no node at $initial found")
     val transitionEnv = TransitionEnv<S, A, R>(initial)
-    return TransitionResult(initial, actions = { node.onEntry?.invoke(transitionEnv) })
+    return TransitionResult(
+      path = initial,
+      actions = {
+        root.onEntry?.invoke(transitionEnv)
+        node.onEntry?.invoke(transitionEnv)
+      },
+    )
   }
 
   @Suppress("MoveLambdaOutsideParentheses")
