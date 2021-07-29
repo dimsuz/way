@@ -85,6 +85,26 @@ data class NodeScheme(
   }
 }
 
+/**
+ * Fold a tree into a "summary" value in depth-first order.
+ * For each node in the tree, apply f to the rootLabel and the result of applying f to each subForest
+ */
+fun <T> NodeScheme.fold(f: (SchemeNode, List<T>) -> T): T {
+  return SchemeNode.Compound(this).fold(f)
+}
+
+/**
+ * Fold a tree into a "summary" value in depth-first order.
+ * For each node in the tree, apply f to the rootLabel and the result of applying f to each subForest
+ */
+fun <T> SchemeNode.fold(f: (SchemeNode, List<T>) -> T): T {
+  val subForestApplications = when (this) {
+    is SchemeNode.Atomic -> emptyList()
+    is SchemeNode.Compound -> this.scheme.nodes.values.map { it.fold(f) }
+  }
+  return f(this, subForestApplications)
+}
+
 sealed class SchemeNode {
   data class Atomic(val transitions: Map<Event, NodeKey>) : SchemeNode()
   data class Compound(val scheme: NodeScheme) : SchemeNode()

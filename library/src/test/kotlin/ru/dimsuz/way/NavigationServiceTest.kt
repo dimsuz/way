@@ -18,6 +18,7 @@ import ru.dimsuz.way.entity.toFlowNode
 import ru.dimsuz.way.entity.toService
 import ru.dimsuz.way.generator.eventSequence
 import ru.dimsuz.way.generator.scheme
+import ru.dimsuz.way.generator.schemeWithEventSequence
 
 class NavigationServiceTest : ShouldSpec({
   context("back stack rules") {
@@ -319,7 +320,7 @@ class NavigationServiceTest : ShouldSpec({
     }
 
     should("execute entry events on each flow node") {
-      val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
+      val schemeWithEventsGen = Arb.schemeWithEventSequence()
       checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
         // Arrange
         var nodeEntryEventCount = 0

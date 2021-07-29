@@ -1,5 +1,6 @@
 package ru.dimsuz.way.generator
 
+import com.github.michaelbull.result.fold
 import io.kotest.property.Arb
 import io.kotest.property.Shrinker
 import io.kotest.property.arbitrary.ListShrinker
@@ -16,6 +17,7 @@ import ru.dimsuz.way.Event
 import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.SchemeNode
+import ru.dimsuz.way.entity.fold
 import java.util.Locale
 import kotlin.random.nextInt
 
@@ -45,25 +47,52 @@ private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> 
     val events = value.second
     val scheme = value.first
     return listOf(
-      scheme.filterNodesWithEvents(events) to events
-    ).plus(eventShrinker.shrink(events).map { scheme.filterNodesWithEvents(it) to it })
+      scheme.filterNodesWithEvents(events, scheme.findNodesTargetedByEvents(events)) to events
+    ).plus(
+      eventShrinker.shrink(events).map {
+        scheme.filterNodesWithEvents(it, scheme.findNodesTargetedByEvents(it)) to it
+      }
+    )
   }
 
-  private fun NodeScheme.filterNodesWithEvents(events: List<Event>): NodeScheme {
-    // TODO also do not filter node if it's the target node of any of event in "events"!
-    //  (collect all of them and pass as an argument)
+  private fun NodeScheme.findNodesTargetedByEvents(events: List<Event>): List<String> {
+    return this.fold { schemeNode, states ->
+      val s = when (schemeNode) {
+        is SchemeNode.Atomic -> {
+          schemeNode.transitions.filterKeys { events.contains(it) }.map { it.value.key }
+        }
+        is SchemeNode.Compound -> emptyList()
+      }
+      states.plusElement(s).flatten()
+    }
+  }
+
+  // TODO rewrite this at least to be extension on SchemeNode.Compound (wrap root NodeScheme in it)
+  //  or using fold
+  private fun NodeScheme.filterNodesWithEvents(events: List<Event>, targets: List<String>): NodeScheme {
+    // TODO also filter unneeded transitions
     return NodeScheme(
       initial = initial,
       nodes = this.nodes.entries.mapNotNull { (key, node) ->
         when (node) {
-          is SchemeNode.Atomic -> if (node.transitions.keys.any { events.contains(it) }) (key to node) else null
+          is SchemeNode.Atomic -> {
+            if (node.transitions.keys.any { events.contains(it) || targets.contains(key) })
+              key to node else null
+          }
           is SchemeNode.Compound -> {
-            val mapped = node.scheme.filterNodesWithEvents(events)
-            if (mapped.nodes.isNotEmpty()) (key to SchemeNode.Compound(mapped)) else null
+            val mappedNodes = node.scheme.filterNodesWithEvents(events, targets).nodes.toMutableMap()
+            if (mappedNodes.isNotEmpty() || targets.contains(key)) {
+              if (!mappedNodes.containsKey(node.scheme.initial)) {
+                // if initial was filtered out, add it back it's required
+                mappedNodes[node.scheme.initial] = node.scheme.nodes[node.scheme.initial]!!
+              }
+              key to SchemeNode.Compound(NodeScheme(node.scheme.initial, mappedNodes))
+            } else null
           }
         }
       }
         .toMap()
+        .let { if (!it.containsKey(initial)) it.plus(initial to this.nodes[initial]!!) else it }
     )
   }
 }
