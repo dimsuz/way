@@ -7,6 +7,7 @@ import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
+import io.kotest.property.PropertyTesting
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
@@ -22,6 +23,8 @@ import ru.dimsuz.way.generator.nodeKey
 import ru.dimsuz.way.generator.scheme
 
 class NavigationMachineTest : ShouldSpec({
+
+  PropertyTesting.shouldPrintShrinkSteps = false
 
   context("initial state") {
     should("report error if initial state is missing") {

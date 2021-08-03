@@ -6,6 +6,7 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
+import io.kotest.property.PropertyTesting
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import io.kotest.property.checkAll
@@ -21,6 +22,8 @@ import ru.dimsuz.way.generator.scheme
 import ru.dimsuz.way.generator.schemeWithEventSequence
 
 class NavigationServiceTest : ShouldSpec({
+  PropertyTesting.shouldPrintShrinkSteps = false
+
   context("back stack rules") {
     should("push initial route") {
       val commands = mutableListOf<BackStack>()

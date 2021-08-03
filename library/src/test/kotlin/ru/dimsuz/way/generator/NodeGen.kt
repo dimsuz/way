@@ -1,13 +1,11 @@
 package ru.dimsuz.way.generator
 
-import com.github.michaelbull.result.fold
 import io.kotest.property.Arb
 import io.kotest.property.Shrinker
 import io.kotest.property.arbitrary.ListShrinker
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.az
 import io.kotest.property.arbitrary.element
-import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.single
@@ -76,8 +74,9 @@ private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> 
       nodes = this.nodes.entries.mapNotNull { (key, node) ->
         when (node) {
           is SchemeNode.Atomic -> {
-            if (node.transitions.keys.any { events.contains(it) || targets.contains(key) })
-              key to node else null
+            val transitions = node.transitions.filter { (event, _) -> events.contains(event) }
+            if (transitions.isNotEmpty() || targets.contains(key))
+              key to node.copy(transitions = transitions) else null
           }
           is SchemeNode.Compound -> {
             val mappedNodes = node.scheme.filterNodesWithEvents(events, targets).nodes.toMutableMap()
@@ -92,7 +91,7 @@ private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> 
         }
       }
         .toMap()
-        .let { if (!it.containsKey(initial)) it.plus(initial to this.nodes[initial]!!) else it }
+        .let { if (it.isNotEmpty() && !it.containsKey(initial)) it.plus(initial to this.nodes[initial]!!) else it }
     )
   }
 }
