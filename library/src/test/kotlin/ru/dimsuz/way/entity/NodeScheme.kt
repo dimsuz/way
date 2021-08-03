@@ -20,6 +20,10 @@ data class NodeScheme(
 ) {
 
   override fun toString(): String {
+    return "[NodeScheme] top-node-count: ${nodes.size}"
+  }
+
+  fun toTableString(): String {
     return table {
       cellStyle { border = true; paddingLeft = 1; paddingRight = 1 }
       header {
