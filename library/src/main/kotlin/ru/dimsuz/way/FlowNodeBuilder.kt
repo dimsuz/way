@@ -16,12 +16,15 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
   internal constructor(node: FlowNode<S, A, R>) {
     draft = FlowNodeDraft(
       initial = node.initial,
+      eventTransitions = node.eventTransitions.toMutableMap(),
       screenBuildActions = node.children
         .filterValues { it is ScreenNode }
         .mapValuesTo(mutableMapOf()) { (_, node) -> { node as ScreenNode } },
       flowBuildActions = node.children
         .filterValues { it is FlowNode<*, *, *> }
         .mapValuesTo(mutableMapOf()) { (_, node) -> { node as FlowNode<*, *, *> } },
+      onEntry = node.onEntry,
+      onExit = node.onExit
     )
   }
 
@@ -80,7 +83,7 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
       FlowNode(
         initial = initial.bind(),
         children = children,
-        eventTransitions = emptyMap(),
+        eventTransitions = draft.eventTransitions,
         onEntry = draft.onEntry,
         onExit = draft.onExit,
       )

@@ -38,8 +38,7 @@ fun Arb.Companion.schemeWithEventSequence(maxLevel: Int = 2): Arb<Pair<NodeSchem
 }
 
 private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> {
-  private val eventShrinker = ListShrinker<Event>(1..50)
-  private val schemeShrinker = SchemeShrinker()
+  private val eventShrinker = ListShrinker<Event>(GEN_EVENTS_MIN..GEN_EVENTS_MAX)
 
   override fun shrink(value: Pair<NodeScheme, List<Event>>): List<Pair<NodeScheme, List<Event>>> {
     val events = value.second
@@ -68,6 +67,7 @@ private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> 
   // TODO rewrite this at least to be extension on SchemeNode.Compound (wrap root NodeScheme in it)
   //  or using fold
   private fun NodeScheme.filterNodesWithEvents(events: List<Event>, targets: List<String>): NodeScheme {
+    if (events.isEmpty()) return this
     // TODO also filter unneeded transitions
     return NodeScheme(
       initial = initial,
@@ -103,8 +103,8 @@ private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> 
  * That implies that each event will transition to a new node, never staying on the same one.
  */
 fun Arb.Companion.eventSequence(scheme: NodeScheme): Arb<List<Event>> {
-  return arbitrary(shrinker = ListShrinker(1..50)) { rs ->
-    val count = rs.random.nextInt(1..50)
+  return arbitrary(shrinker = ListShrinker(GEN_EVENTS_MIN..GEN_EVENTS_MAX)) { rs ->
+    val count = rs.random.nextInt(GEN_EVENTS_MIN..GEN_EVENTS_MAX)
     val events = mutableListOf<Event>()
     var containingNode = SchemeNode.Compound(scheme)
     var currentNode = scheme.nodes[scheme.initial]
@@ -259,3 +259,5 @@ private class SchemeShrinker : Shrinker<NodeScheme> {
 }
 
 private const val ENABLE_SCHEME_GEN_DEBUG = false
+private const val GEN_EVENTS_MIN = 1
+private const val GEN_EVENTS_MAX = 50

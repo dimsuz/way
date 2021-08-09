@@ -6,11 +6,14 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
+import io.kotest.property.PropTestConfig
 import io.kotest.property.PropertyTesting
+import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import io.kotest.property.checkAll
 import ru.dimsuz.way.entity.NodeScheme
+import ru.dimsuz.way.entity.SchemeNode
 import ru.dimsuz.way.entity.node
 import ru.dimsuz.way.entity.on
 import ru.dimsuz.way.entity.path
@@ -323,27 +326,20 @@ class NavigationServiceTest : ShouldSpec({
     }
 
     should("execute entry events on each flow node") {
-      val schemeWithEventsGen = Arb.schemeWithEventSequence()
-      checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+      checkAll(iterations = 500, Arb.schemeWithEventSequence()) { (scheme, events) ->
         // Arrange
         var nodeEntryEventCount = 0
         val root = scheme
           .toFlowNode<Unit, Unit, Unit>(
             Unit,
-            modifySubFlowNode = { flowNode, builder ->
-              builder
-                .of(
-                  flowNode.newBuilder()
-                    .onEntry { nodeEntryEventCount++ }
-                    .build(Unit)
-                    .unwrap()
-                )
-                .build()
-                .unwrap()
+            modifySubFlow = { builder ->
+              builder.onEntry { nodeEntryEventCount++ }
             }
           )
           .newBuilder()
-          .onEntry { nodeEntryEventCount++ }
+          .onEntry {
+            nodeEntryEventCount++
+          }
           .build(Unit)
           .unwrap()
 
@@ -355,34 +351,32 @@ class NavigationServiceTest : ShouldSpec({
         events.forEach {
           service.sendEvent(it)
         }
-        // this will bubble up to the very top and transition to final_screen
-        service.sendEvent(Event("FINISH"))
 
         // Assert
-        nodeEntryEventCount shouldBe currentBackStack?.last()?.size
+        try {
+          nodeEntryEventCount shouldBe currentBackStack?.last()?.size
+        } catch (e: Throwable) {
+          println(scheme.toTableString())
+          println(events)
+          throw e
+        }
       }
     }
 
-    should("execute on each flow node") {
-      val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
-      checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+    should("execute entry/exit on each flow node") {
+      val schemeGen =
+        Arb.schemeWithEventSequence().filter { (scheme, _) -> scheme.nodes.any { it.value is SchemeNode.Compound } }
+      checkAll(iterations = 500, config = PropTestConfig(seed = -5575976667020759400), schemeGen) { (scheme, events) ->
         // Arrange
         var nodeEntryEventCount = 0
         var nodeExitEventCount = 0
         val root = scheme
           .toFlowNode<Unit, Unit, Unit>(
             Unit,
-            modifySubFlowNode = { flowNode, builder ->
+            modifySubFlow = { builder ->
               builder
-                .of(
-                  flowNode.newBuilder()
-                    .onEntry { nodeEntryEventCount++ }
-                    .onExit { nodeExitEventCount++ }
-                    .build(Unit)
-                    .unwrap()
-                )
-                .build()
-                .unwrap()
+                .onEntry { nodeEntryEventCount++ }
+                .onExit { nodeExitEventCount++ }
             }
           )
           .newBuilder()
@@ -405,10 +399,15 @@ class NavigationServiceTest : ShouldSpec({
         service.sendEvent(Event("FINISH"))
 
         // Assert
-        // number of events sent + initial node entry
-        nodeEntryEventCount shouldBe events.size + 1
-        // not counting exit from the last transitioned-to node, as it didn't happen
-        nodeExitEventCount shouldBe events.size
+        try {
+          nodeExitEventCount shouldBeGreaterThan 0
+          // not counting exit from the last transitioned-to node, as it didn't happen
+          nodeExitEventCount shouldBe nodeEntryEventCount - 1
+        } catch (e: Throwable) {
+          println(scheme.toTableString())
+          println(events)
+          throw e
+        }
       }
     }
   }

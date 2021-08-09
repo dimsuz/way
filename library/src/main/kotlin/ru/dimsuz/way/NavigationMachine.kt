@@ -16,36 +16,43 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     }
 
   fun transitionToInitial(): TransitionResult {
-    val node = root.findChild(initial)
-      ?: error("no node at $initial found")
+    val entrySet = root.findChildrenAlongPath(initial)
     val transitionEnv = TransitionEnv<S, A, R>(initial)
     return TransitionResult(
       path = initial,
       actions = {
         root.onEntry?.invoke(transitionEnv)
-        node.onEntry?.invoke(transitionEnv)
+        entrySet.forEach {
+          it.onEntry?.invoke(transitionEnv)
+        }
       },
     )
   }
 
   @Suppress("MoveLambdaOutsideParentheses")
   fun transition(path: Path, event: Event): TransitionResult {
-    val node = root.findChild(path)
-      ?: error("no node at $path found")
-    val transitionSpec = node.eventTransitions[event]
+    val transitionSpec = findTransition(root, event, path)
     return if (transitionSpec != null) {
       val transitionEnv = TransitionEnv<S, A, R>(path)
       val actions = mutableListOf<() -> Unit>()
       val transition = transitionEnv.apply(transitionSpec)
+      // TODO
+      //   1. rename ActionEnv.path to "resolvedPath" or document as: The resolved machine state, after transition
+      //   2. remove resolveTarget from within transiton object to this class and rework it so that
+      //      it is resolved not against current `path`, but against the path of the node on which
+      //      findTransition() has found this transitionSpec (maybe findTransition() should return a Pair)
       val targetPath = transition.resolveTarget()
         ?: error("expected transition target for path = $path")
       val resolvedTargetPath = root.fullyResolvePath(targetPath)
 
-      if (node.onExit != null) {
-        actions.add({ node.onExit?.invoke(transitionEnv) })
+      val exitSet = findExitNodes(root, path, resolvedTargetPath)
+      exitSet.forEach { n ->
+        if (n.onExit != null) {
+          actions.add({ n.onExit?.invoke(transitionEnv) })
+        }
       }
-      val pathNodes = root.findChildrenAlongPath(resolvedTargetPath)
-      pathNodes.forEach { n ->
+      val entrySet = findEntryNodes(root, path, resolvedTargetPath)
+      entrySet.forEach { n ->
         if (n.onEntry != null) {
           actions.add({ n.onEntry?.invoke(transitionEnv) })
         }
@@ -53,8 +60,21 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
       TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() }?.join())
     } else {
+      println("no transition for event $event on node $path → ignoring")
       TransitionResult(path, actions = null)
     }
+  }
+
+  private fun findTransition(root: FlowNode<*, *, *>, event: Event, path: Path): ((TransitionEnv<*, *, *>) -> Unit)? {
+    val nodes = root.findChildrenAlongPath(path).takeIf { it.isNotEmpty() }
+      ?: error("no nodes at $path found")
+    for (i in nodes.lastIndex downTo 0) {
+      val transitionSpec = nodes[i].eventTransitions[event]
+      if (transitionSpec != null) {
+        return transitionSpec
+      }
+    }
+    return root.eventTransitions[event]
   }
 }
 
@@ -66,6 +86,48 @@ data class TransitionResult(
   val path: Path,
   val actions: (() -> Unit)?,
 )
+
+private fun findEntryNodes(root: FlowNode<*, *, *>, path: Path, newPath: Path): List<Node> {
+  val commonPrefixSize = newPath.findCommonPrefix(path)?.size ?: 0
+  return root.findChildrenAlongPath(newPath).drop(commonPrefixSize)
+}
+
+private fun findExitNodes(root: FlowNode<*, *, *>, path: Path, newPath: Path): List<Node> {
+  val commonPrefixSize = newPath.findCommonPrefix(path)?.size ?: 0
+  return root.findChildrenAlongPath(path).drop(commonPrefixSize)
+}
+
+/**
+ * "flowA.flowB.screenA".isChildOf("flowA") // true
+ * "flowA.flowB.screenA".isChildOf("flowA.flowB") // true
+ * "flowA.flowB.screenA".isChildOf("flowC") // false
+ * "flowA.flowB.screenA".isChildOf("flowA.flowC") // false
+ */
+private fun Path.isChildOf(other: Path): Boolean {
+  return this.findCommonPrefix(other) == other
+}
+
+/**
+ * "flowA.flowB.screenA".isChildOf("flowA") // [ flowA ]
+ * "flowA.flowB.screenA".isChildOf("flowA.flowB") // [ flowA, flowB ]
+ * "flowA.flowB.screenA".isChildOf("flowC") // [ ]
+ * "flowA.flowB.screenA".isChildOf("flowA.flowC") // [ flowA ]
+ */
+private fun Path.findCommonPrefix(other: Path): Path? {
+  var p1: Path? = this
+  var p2: Path? = other
+  val result = ArrayList<NodeKey>(minOf(this.size, other.size))
+  while (p1 != null && p2 != null) {
+    if (p1.firstSegment == p2.firstSegment) {
+      result.add(p1.firstSegment)
+      p1 = p1.tail
+      p2 = p2.tail
+    } else {
+      break
+    }
+  }
+  return if (result.isNotEmpty()) Path.fromNonEmptyListOf(result) else null
+}
 
 // TODO replace this with fold + traverse and/or give it a clearer name
 private fun FlowNode<*, *, *>.fullyResolvePath(targetPath: Path): Path {
