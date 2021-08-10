@@ -2,22 +2,23 @@ package ru.dimsuz.way
 
 open class TransitionEnv<S : Any, A : Any, R : Any>(path: Path) : ActionEnv<S, A>(path) {
 
-  private var resolvedTargetPath: Path? = null
+  internal sealed class Destination {
+    data class RelativeNode(val key: NodeKey) : Destination()
+    data class Path(val path: ru.dimsuz.way.Path) : Destination()
+  }
+
+  internal var destination: Destination? = null
+    private set
 
   fun navigateTo(key: NodeKey) {
-    resolvedTargetPath = if (path.size == 1) Path(key) else path.take(path.size - 1) append key
+    destination = Destination.RelativeNode(key)
   }
 
   fun navigateTo(path: Path) {
-    resolvedTargetPath = path
+    destination = Destination.Path(path)
   }
 
   fun finish(result: R) {
     TODO()
-  }
-
-  // TODO make it return sealed class? nodeId/path/result
-  fun resolveTarget(): Path? {
-    return resolvedTargetPath
   }
 }

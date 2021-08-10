@@ -31,30 +31,25 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
   @Suppress("MoveLambdaOutsideParentheses")
   fun transition(path: Path, event: Event): TransitionResult {
-    val transitionSpec = findTransition(root, event, path)
-    return if (transitionSpec != null) {
-      val transitionEnv = TransitionEnv<S, A, R>(path)
+    val newTargetPath = findAndResolveTransitionTarget(root, event, path)
+    return if (newTargetPath != null) {
       val actions = mutableListOf<() -> Unit>()
-      val transition = transitionEnv.apply(transitionSpec)
       // TODO
       //   1. rename ActionEnv.path to "resolvedPath" or document as: The resolved machine state, after transition
-      //   2. remove resolveTarget from within transiton object to this class and rework it so that
-      //      it is resolved not against current `path`, but against the path of the node on which
-      //      findTransition() has found this transitionSpec (maybe findTransition() should return a Pair)
-      val targetPath = transition.resolveTarget()
-        ?: error("expected transition target for path = $path")
-      val resolvedTargetPath = root.fullyResolvePath(targetPath)
+      //   2. TEST
+      val resolvedTargetPath = root.fullyResolvePath(newTargetPath)
 
+      val actionEnv = ActionEnv<S, A>(path)
       val exitSet = findExitNodes(root, path, resolvedTargetPath)
       exitSet.forEach { n ->
         if (n.onExit != null) {
-          actions.add({ n.onExit?.invoke(transitionEnv) })
+          actions.add({ n.onExit?.invoke(actionEnv) })
         }
       }
       val entrySet = findEntryNodes(root, path, resolvedTargetPath)
       entrySet.forEach { n ->
         if (n.onEntry != null) {
-          actions.add({ n.onEntry?.invoke(transitionEnv) })
+          actions.add({ n.onEntry?.invoke(actionEnv) })
         }
       }
 
@@ -65,16 +60,33 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     }
   }
 
-  private fun findTransition(root: FlowNode<*, *, *>, event: Event, path: Path): ((TransitionEnv<*, *, *>) -> Unit)? {
+  private fun findAndResolveTransitionTarget(root: FlowNode<*, *, *>, event: Event, path: Path): Path? {
     val nodes = root.findChildrenAlongPath(path).takeIf { it.isNotEmpty() }
       ?: error("no nodes at $path found")
+    var transition: ((TransitionEnv<*, *, *>) -> Unit)? = null
+    var transitionNodePath: Path? = null
     for (i in nodes.lastIndex downTo 0) {
       val transitionSpec = nodes[i].eventTransitions[event]
       if (transitionSpec != null) {
-        return transitionSpec
+        transition = transitionSpec
+        transitionNodePath = path.take(i + 1)
+        break
       }
     }
-    return root.eventTransitions[event]
+    return (transition ?: root.eventTransitions[event])
+      ?.let { spec ->
+        val transitionEnv = TransitionEnv<S, A, R>(path)
+        spec.invoke(transitionEnv)
+        transitionEnv.destination
+      }?.let { destination ->
+        when (destination) {
+          is TransitionEnv.Destination.Path -> destination.path
+          is TransitionEnv.Destination.RelativeNode -> {
+            val resolveContext = transitionNodePath ?: error("unexpected null path for resolve")
+            resolveContext.dropLast(1)?.let { it append destination.key } ?: Path(destination.key)
+          }
+        }
+      }
   }
 }
 
