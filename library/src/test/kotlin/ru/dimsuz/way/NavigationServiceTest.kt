@@ -6,7 +6,6 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
-import io.kotest.property.PropTestConfig
 import io.kotest.property.PropertyTesting
 import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.flatMap
@@ -366,7 +365,7 @@ class NavigationServiceTest : ShouldSpec({
     should("execute entry/exit on each flow node") {
       val schemeGen =
         Arb.schemeWithEventSequence().filter { (scheme, _) -> scheme.nodes.any { it.value is SchemeNode.Compound } }
-      checkAll(iterations = 500, config = PropTestConfig(seed = -5575976667020759400), schemeGen) { (scheme, events) ->
+      checkAll(iterations = 500, schemeGen) { (scheme, events) ->
         // Arrange
         var nodeEntryEventCount = 0
         var nodeExitEventCount = 0
@@ -383,8 +382,6 @@ class NavigationServiceTest : ShouldSpec({
           // add a final screen which will cause all child flows to exit
           .addScreenNode(NodeKey("final_screen")) { builder -> builder.build() }
           .on(Event("FINISH")) { navigateTo(NodeKey("final_screen")) }
-          .onEntry { nodeEntryEventCount++ }
-          .onExit { nodeExitEventCount++ }
           .build(Unit)
           .unwrap()
 
@@ -400,9 +397,7 @@ class NavigationServiceTest : ShouldSpec({
 
         // Assert
         try {
-          nodeExitEventCount shouldBeGreaterThan 0
-          // not counting exit from the last transitioned-to node, as it didn't happen
-          nodeExitEventCount shouldBe nodeEntryEventCount - 1
+          nodeExitEventCount shouldBe nodeEntryEventCount
         } catch (e: Throwable) {
           println(scheme.toTableString())
           println(events)

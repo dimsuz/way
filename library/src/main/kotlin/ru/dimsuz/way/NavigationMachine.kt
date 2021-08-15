@@ -73,6 +73,14 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
         break
       }
     }
+    if (transitionNodePath == null) {
+      // no node in path contains matching transition, maybe root has it?
+      val transitionSpec = root.eventTransitions[event]
+      if (transitionSpec != null) {
+        transition = transitionSpec
+        transitionNodePath = Path(NODE_KEY_ROOT)
+      }
+    }
     return (transition ?: root.eventTransitions[event])
       ?.let { spec ->
         val transitionEnv = TransitionEnv<S, A, R>(path)
@@ -82,7 +90,8 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
         when (destination) {
           is TransitionEnv.Destination.Path -> destination.path
           is TransitionEnv.Destination.RelativeNode -> {
-            val resolveContext = transitionNodePath ?: error("unexpected null path for resolve")
+            val resolveContext = transitionNodePath
+              ?: error("unexpected null path for resolve. destination = $destination")
             resolveContext.dropLast(1)?.let { it append destination.key } ?: Path(destination.key)
           }
         }
@@ -186,3 +195,5 @@ private fun FlowNode<*, *, *>.findChildrenAlongPath(path: Path): List<Node> {
   }
   return nodes
 }
+
+private val NODE_KEY_ROOT = NodeKey("<root>")
