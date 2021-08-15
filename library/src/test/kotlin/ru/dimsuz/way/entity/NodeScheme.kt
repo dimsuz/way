@@ -195,3 +195,10 @@ fun <S : Any, C : Any> NodeScheme.toService(
 ): NavigationService<C> {
   return NavigationService(NavigationMachine(this.toFlowNode(initialState)), commandBuilder, onCommand)
 }
+
+fun <S : Any, C : Any> FlowNode<S, *, *>.toService(
+  commandBuilder: CommandBuilder<C>,
+  onCommand: (command: C) -> Unit
+): NavigationService<C> {
+  return NavigationService(NavigationMachine(this), commandBuilder, onCommand)
+}

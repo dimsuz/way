@@ -406,6 +406,45 @@ class NavigationServiceTest : ShouldSpec({
       }
     }
   }
+
+  context("node actions") {
+    should("send events from within the screen onEntry action") {
+      val commands = mutableListOf<BackStack>()
+      val service = scheme(
+        initial = "a",
+        node("a", on("EN", target = "b"), on("EX", target = "c")),
+        node("b"),
+      )
+        .toFlowNode<Unit, Unit, Unit>(
+          initialState = Unit,
+          modifyScreenNode = { builder ->
+            builder.onEntry { sendEvent(Event("EN")) }
+          }
+        )
+        .toCollectingService(commands)
+
+      commands.last().shouldContainExactly(path("b"))
+    }
+
+    should("send events from within the screen onExit action") {
+      val commands = mutableListOf<BackStack>()
+      val service = scheme(
+        initial = "a",
+        node("a", on("EN", target = "b"), on("EX", target = "c")),
+        node("b"),
+        node("c"),
+      )
+        .toFlowNode<Unit, Unit, Unit>(
+          initialState = Unit,
+          modifyScreenNode = { builder ->
+            builder.onExit { sendEvent(Event("EX")) }
+          }
+        )
+        .toCollectingService(commands)
+
+      commands.last().shouldContainExactly(path("c"))
+    }
+  }
 })
 
 private fun NodeScheme.toCollectingService(
@@ -419,6 +458,12 @@ private fun NodeScheme.toCollectingService(
   ).apply { if (start) start() }
 }
 
-private fun entry(key: String): BackStackEntry {
-  return BackStackEntry(NodeKey(key))
+private fun FlowNode<*, *, *>.toCollectingService(
+  commandSink: MutableList<BackStack>,
+  start: Boolean = true,
+): NavigationService<BackStack> {
+  return this.toService(
+    commandBuilder = { _, new -> new },
+    onCommand = { commandSink.add(it) }
+  ).apply { if (start) start() }
 }
