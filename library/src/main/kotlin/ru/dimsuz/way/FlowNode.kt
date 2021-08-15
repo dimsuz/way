@@ -1,6 +1,6 @@
 package ru.dimsuz.way
 
-data class FlowNode<S : Any, A : Any, R : Any>(
+data class FlowNode<S : Any, A : Any, R : Any> internal constructor(
   val initial: NodeKey,
   val children: Map<NodeKey, Node>,
   override val eventTransitions: Map<Event, (TransitionEnv<*, *, *>) -> Unit>,
