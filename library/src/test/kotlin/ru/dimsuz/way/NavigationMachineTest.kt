@@ -199,8 +199,14 @@ class NavigationMachineTest : ShouldSpec({
         )
 
         // Assert
-        screenNodeEntryEventCount shouldBeGreaterThan 0
-        screenNodeExitEventCount shouldBe screenNodeEntryEventCount - 1
+        try {
+          screenNodeEntryEventCount shouldBeGreaterThan 0
+          screenNodeExitEventCount shouldBe screenNodeEntryEventCount - 1
+        } catch (e: Throwable) {
+          println(scheme.toTableString())
+          println(events)
+          throw e
+        }
       }
     }
   }
