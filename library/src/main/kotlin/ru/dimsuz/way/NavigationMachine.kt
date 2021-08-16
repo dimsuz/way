@@ -18,42 +18,43 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
   fun transitionToInitial(): TransitionResult {
     val entrySet = root.findChildrenAlongPath(initial)
     val transitionEnv = TransitionEnv<S, A, R>(initial)
+    val list = mutableListOf<(ActionEnv<*, *>) -> Unit>()
+    root.onEntry?.also { list.add(it) }
+    entrySet.forEach { node ->
+      node.onEntry?.also { list.add(it) }
+    }
     return TransitionResult(
       path = initial,
-      actions = {
-        root.onEntry?.invoke(transitionEnv)
-        entrySet.forEach {
-          it.onEntry?.invoke(transitionEnv)
-        }
-      },
+      actions = list.composeIn(transitionEnv)
     )
+  }
+
+  private fun List<(ActionEnv<*, *>) -> Unit>.composeIn(env: ActionEnv<*, *>): () -> List<Event> {
+    return {
+      this.forEach { action -> action(env) }
+      env.queuedEvents.orEmpty()
+    }
   }
 
   @Suppress("MoveLambdaOutsideParentheses")
   fun transition(path: Path, event: Event): TransitionResult {
     val newTargetPath = findAndResolveTransitionTarget(root, event, path)
     return if (newTargetPath != null) {
-      val actions = mutableListOf<() -> Unit>()
-      // TODO
-      //   1. rename ActionEnv.path to "resolvedPath" or document as: The resolved machine state, after transition
-      //   2. TEST
+      // val actions = mutableListOf<() -> Unit>()
       val resolvedTargetPath = root.fullyResolvePath(newTargetPath)
 
       val actionEnv = ActionEnv<S, A>(path)
       val exitSet = findExitNodes(root, path, resolvedTargetPath)
+      val actions = mutableListOf<(ActionEnv<*, *>) -> Unit>()
       exitSet.forEach { n ->
-        if (n.onExit != null) {
-          actions.add({ n.onExit?.invoke(actionEnv) })
-        }
+        if (n.onExit != null) n.onExit?.let { actions.add(it) }
       }
       val entrySet = findEntryNodes(root, path, resolvedTargetPath)
       entrySet.forEach { n ->
-        if (n.onEntry != null) {
-          actions.add({ n.onEntry?.invoke(actionEnv) })
-        }
+        if (n.onEntry != null) n.onEntry?.let { actions.add(it) }
       }
 
-      TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() }?.join())
+      TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() }?.composeIn(actionEnv))
     } else {
       println("no transition for event $event on node $path → ignoring")
       TransitionResult(path, actions = null)
@@ -105,7 +106,7 @@ private fun List<() -> Unit>.join(): () -> Unit {
 
 data class TransitionResult(
   val path: Path,
-  val actions: (() -> Unit)?,
+  val actions: (() -> List<Event>)?,
 )
 
 private fun findEntryNodes(root: FlowNode<*, *, *>, path: Path, newPath: Path): List<Node> {

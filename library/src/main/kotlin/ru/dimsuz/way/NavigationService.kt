@@ -15,19 +15,21 @@ class NavigationService<T : Any>(
     val previousPath = backStack.last()
     val transitionResult = machine.transition(backStack.last(), event)
     val newBackStack = recordTransition(backStack, previousPath, transitionResult.path)
-    transitionResult.actions?.invoke()
+    val events = transitionResult.actions?.invoke()
     if (backStack != newBackStack) {
       val oldBackStack = backStack
       backStack = newBackStack
       onCommand(commandBuilder(oldBackStack, newBackStack))
     }
+    events?.forEach { sendEvent(it) }
   }
 
   fun start() {
     backStack = listOf(machine.initial)
     val transitionResult = machine.transitionToInitial()
-    transitionResult.actions?.invoke()
+    val events = transitionResult.actions?.invoke()
     onCommand(commandBuilder(emptyList(), backStack))
+    events?.forEach { sendEvent(it) }
   }
 
   private fun recordTransition(backStack: BackStack, previousPath: Path, newPath: Path): BackStack {

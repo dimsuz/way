@@ -410,7 +410,7 @@ class NavigationServiceTest : ShouldSpec({
   context("node actions") {
     should("send events from within the screen onEntry action") {
       val commands = mutableListOf<BackStack>()
-      val service = scheme(
+      scheme(
         initial = "a",
         node("a", on("EN", target = "b"), on("EX", target = "c")),
         node("b"),
@@ -423,15 +423,15 @@ class NavigationServiceTest : ShouldSpec({
         )
         .toCollectingService(commands)
 
-      commands.last().shouldContainExactly(path("b"))
+      commands.last().shouldContainExactly(path("a"), path("b"))
     }
 
     should("send events from within the screen onExit action") {
       val commands = mutableListOf<BackStack>()
       val service = scheme(
         initial = "a",
-        node("a", on("EN", target = "b"), on("EX", target = "c")),
-        node("b"),
+        node("a", on("EN", target = "b")),
+        node("b", on("EX", target = "c")),
         node("c"),
       )
         .toFlowNode<Unit, Unit, Unit>(
@@ -442,7 +442,10 @@ class NavigationServiceTest : ShouldSpec({
         )
         .toCollectingService(commands)
 
-      commands.last().shouldContainExactly(path("c"))
+      // currently, on "a". EN → move to "b" and cause a.onExit to fire. Which will send "EX" and move to "c"
+      service.sendEvent(Event("EN"))
+
+      commands.last().shouldContainExactly(path("a"), path("b"), path("c"))
     }
   }
 })
