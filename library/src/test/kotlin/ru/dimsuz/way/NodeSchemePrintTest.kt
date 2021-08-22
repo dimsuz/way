@@ -20,7 +20,7 @@ class NodeSchemePrintTest : ShouldSpec({
       node("nodeC"),
       node("nodeNodeZ"),
     )
-    scheme.toString() shouldBe """
+    scheme.toTableString() shouldBe """
 ┌───────────┬──────────┬────────┐
 │ STATE     │ ON EVENT │ TARGET │
 ├───────────┼──────────┴────────┤
@@ -64,7 +64,7 @@ class NodeSchemePrintTest : ShouldSpec({
       ),
       node("nodeNodeZ"),
     )
-    scheme.toString() shouldBe """
+    scheme.toTableString() shouldBe """
 ┌───────────┬───────────┬────────┐        
 │ STATE     │ ON EVENT  │ TARGET │        
 ├───────────┼───────────┴────────┤        
@@ -133,7 +133,7 @@ class NodeSchemePrintTest : ShouldSpec({
       ),
       node("nodeNodeZ"),
     )
-    scheme.toString() shouldBe """
+    scheme.toTableString() shouldBe """
 ┌───────────┬───────────┬───────────┐                   
 │ STATE     │ ON EVENT  │ TARGET    │                   
 ├───────────┼───────────┴───────────┤                   

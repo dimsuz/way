@@ -8,8 +8,6 @@ import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.PropertyTesting
-import io.kotest.property.arbitrary.flatMap
-import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import ru.dimsuz.way.entity.NodeScheme
@@ -18,9 +16,8 @@ import ru.dimsuz.way.entity.on
 import ru.dimsuz.way.entity.path
 import ru.dimsuz.way.entity.scheme
 import ru.dimsuz.way.entity.toFlowNode
-import ru.dimsuz.way.generator.eventSequence
 import ru.dimsuz.way.generator.nodeKey
-import ru.dimsuz.way.generator.scheme
+import ru.dimsuz.way.generator.schemeWithEventSequence
 
 class NavigationMachineTest : ShouldSpec({
 
@@ -147,8 +144,7 @@ class NavigationMachineTest : ShouldSpec({
       }
 
       should("perform number of distinct transitions equal to number of valid events") {
-        val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
-        checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+        checkAll(iterations = 500, Arb.schemeWithEventSequence()) { (scheme, events) ->
           val machine = NavigationMachine(scheme.toFlowNode(Unit))
           var currentEventIndex = 0
           val states = mutableListOf<Path>()
@@ -173,8 +169,7 @@ class NavigationMachineTest : ShouldSpec({
 
   context("entry/exit actions") {
     should("execute entry/exit actions on screen nodes") {
-      val schemeWithEventsGen = Arb.scheme().flatMap { scheme -> Arb.eventSequence(scheme).map { scheme to it } }
-      checkAll(iterations = 500, schemeWithEventsGen) { (scheme, events) ->
+      checkAll(iterations = 500, Arb.schemeWithEventSequence()) { (scheme, events) ->
         // Arrange
         var screenNodeEntryEventCount = 0
         var screenNodeExitEventCount = 0
@@ -247,7 +242,14 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
   if (ENABLE_TRANSITION_LOG) {
     println("=== starting transition sequence ===")
   }
-  var currentPath = this.initial
+
+  val initialResult = transitionToInitial()
+  var currentPath = initialResult.path
+  if (ENABLE_TRANSITION_LOG) {
+    println("<start> → $currentPath")
+  }
+  if (executeActions) initialResult.actions?.invoke()
+
   while (true) {
     val nextEvent = nextEventSelector(currentPath)
     if (nextEvent == null) {

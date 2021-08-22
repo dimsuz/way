@@ -40,7 +40,6 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
   fun transition(path: Path, event: Event): TransitionResult {
     val newTargetPath = findAndResolveTransitionTarget(root, event, path)
     return if (newTargetPath != null) {
-      // val actions = mutableListOf<() -> Unit>()
       val resolvedTargetPath = root.fullyResolvePath(newTargetPath)
 
       val actionEnv = ActionEnv<S, A>(path)
@@ -56,7 +55,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
       TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() }?.composeIn(actionEnv))
     } else {
-      println("no transition for event $event on node $path → ignoring")
+      println("no transition for event $event on node $path, ignoring")
       TransitionResult(path, actions = null)
     }
   }
