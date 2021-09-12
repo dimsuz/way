@@ -77,12 +77,13 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
         buildAction(builder)
       }
       draft.flowBuildActions.mapValuesTo(children) { (_, buildAction) ->
-        val builder = SubFlowBuilder<S, A, R, Any>()
+        val builder = SubFlowBuilder<S, A, R, Any>(draft.eventTransitions)
         buildAction(builder)
       }
       FlowNode(
         initial = initial.bind(),
         children = children,
+        state = initialState,
         eventTransitions = draft.eventTransitions,
         onEntry = draft.onEntry,
         onExit = draft.onExit,

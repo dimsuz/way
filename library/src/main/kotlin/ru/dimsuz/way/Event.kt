@@ -4,5 +4,7 @@ package ru.dimsuz.way
 value class Event(val name: String) {
   companion object {
     val BACK = Event("BACK")
+
+    internal val DONE = Event("DONE")
   }
 }

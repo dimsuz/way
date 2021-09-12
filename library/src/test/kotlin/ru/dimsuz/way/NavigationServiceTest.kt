@@ -448,6 +448,37 @@ class NavigationServiceTest : ShouldSpec({
       commands.last().shouldContainExactly(path("a"), path("b"), path("c"))
     }
   }
+
+  context("flow result processing") {
+    should("transition to node specified in onResult") {
+      val commands = mutableListOf<BackStack>()
+      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+        .setInitial(NodeKey("flowB"))
+        .addFlowNode<String>(NodeKey("flowB")) { builder ->
+          builder
+            .of(
+              FlowNodeBuilder<Unit, Unit, String>()
+                .setInitial(NodeKey("b1"))
+                .addScreenNode(NodeKey("b1")) { sb -> sb.on(Event("T")) { finish("finishResultT") }.build() }
+                .on(Event("DONE")) { sendEvent(Event("DONE_UUID")) }
+                .build(Unit)
+                .unwrap()
+            )
+            .onResult { if (result == "finishResultT") navigateTo(NodeKey("a1")) else error("unexpected result") }
+            .build()
+            .unwrap()
+        }
+        .addScreenNode(NodeKey("a1")) { builder -> builder.build() }
+        .build(Unit)
+        .unwrap()
+
+      val service = node.toCollectingService(commands)
+
+      service.sendEvent(Event("T"))
+
+      commands.last().shouldContainExactly(path("a1"))
+    }
+  }
 })
 
 private fun NodeScheme.toCollectingService(

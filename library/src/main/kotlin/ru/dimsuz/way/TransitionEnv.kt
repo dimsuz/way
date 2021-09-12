@@ -19,6 +19,8 @@ open class TransitionEnv<S : Any, A : Any, R : Any>(path: Path) : ActionEnv<S, A
   }
 
   fun finish(result: R) {
+    // TODO make it so that calling this results in sending `Event.DONE`
+    //  (for example by internally adding action returning listOf(Event.DONE))
     TODO()
   }
 }
