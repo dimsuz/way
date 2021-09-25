@@ -10,6 +10,8 @@ open class TransitionEnv<S : Any, A : Any, R : Any>(path: Path) : ActionEnv<S, A
   internal var destination: Destination? = null
     private set
 
+  internal var finishResult: R? = null
+
   fun navigateTo(key: NodeKey) {
     destination = Destination.RelativeNode(key)
   }
@@ -19,8 +21,6 @@ open class TransitionEnv<S : Any, A : Any, R : Any>(path: Path) : ActionEnv<S, A
   }
 
   fun finish(result: R) {
-    // TODO make it so that calling this results in sending `Event.DONE`
-    //  (for example by internally adding action returning listOf(Event.DONE))
-    TODO()
+    finishResult = result
   }
 }

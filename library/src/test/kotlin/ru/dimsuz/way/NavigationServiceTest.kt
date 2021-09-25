@@ -512,11 +512,12 @@ class NavigationServiceTest : ShouldSpec({
               FlowNodeBuilder<Unit, Unit, String>()
                 .setInitial(NodeKey("b1"))
                 .addScreenNode(NodeKey("b1")) { sb -> sb.on(Event("T")) { finish("finishResultT") }.build() }
-                .on(Event("DONE")) { sendEvent(Event("DONE_UUID")) }
                 .build(Unit)
                 .unwrap()
             )
-            .onResult { if (result == "finishResultT") navigateTo(NodeKey("a1")) else error("unexpected result") }
+            .onResult {
+              if (result == "finishResultT") navigateTo(NodeKey("a1")) else error("unexpected result")
+            }
             .build()
             .unwrap()
         }

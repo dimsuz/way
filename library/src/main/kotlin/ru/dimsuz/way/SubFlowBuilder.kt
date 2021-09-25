@@ -9,7 +9,7 @@ class SubFlowBuilder<S : Any, A : Any, R : Any, SR : Any> internal constructor(
   private val extraTransitionsSink: MutableMap<Event, (TransitionEnv<*, *, *>) -> Unit>
 ) {
   private var flowNode: FlowNode<*, *, SR>? = null
-  private var onResultTransition: ((ResultTransitionEnv<S, A, R, SR>) -> Unit?)? = null
+  private var onResultTransition: ((ResultTransitionEnv<S, A, R, SR>) -> Unit)? = null
 
   enum class Error {
     MissingFlowNode

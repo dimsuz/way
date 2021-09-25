@@ -1,8 +1,6 @@
 package ru.dimsuz.way
 
-class ResultTransitionEnv<S : Any, A : Any, R : Any, SR : Any>(path: Path) : TransitionEnv<S, A, R>(path) {
+class ResultTransitionEnv<S : Any, A : Any, R : Any, SR : Any>(
+  path: Path,
   val result: SR
-    get() {
-      TODO()
-    }
-}
+) : TransitionEnv<S, A, R>(path)

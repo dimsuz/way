@@ -38,9 +38,9 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
   @Suppress("MoveLambdaOutsideParentheses")
   fun transition(path: Path, event: Event): TransitionResult {
-    val newTargetPath = findAndResolveTransitionTarget(root, event, path)
-    return if (newTargetPath != null) {
-      val resolvedTargetPath = root.fullyResolvePath(newTargetPath)
+    val resolvedTransition = findAndResolveTransitionTarget(root, event, path)
+    return if (resolvedTransition?.targetPath != null && resolvedTransition.finishResult == null) {
+      val resolvedTargetPath = root.fullyResolvePath(resolvedTransition.targetPath)
 
       val actionEnv = ActionEnv<S, A>(path)
       val exitSet = findExitNodes(root, path, resolvedTargetPath)
@@ -54,13 +54,21 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       }
 
       TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() }?.composeIn(actionEnv))
+    } else if (resolvedTransition?.targetPath == null && resolvedTransition?.finishResult != null) {
+      TransitionResult(path, actions = { listOf(Event.DONE) })
+    } else if (resolvedTransition?.targetPath != null && resolvedTransition.finishResult != null) {
+      error("only one of navigateTo() or finish() can be called")
+    } else if (resolvedTransition != null && resolvedTransition.targetPath == null &&
+      resolvedTransition.finishResult == null && resolvedTransition.queuedEvents.isNotEmpty()
+    ) {
+      TransitionResult(path, actions = { resolvedTransition.queuedEvents })
     } else {
       println("no transition for event $event on node $path, ignoring")
       TransitionResult(path, actions = null)
     }
   }
 
-  private fun findAndResolveTransitionTarget(root: FlowNode<*, *, *>, event: Event, path: Path): Path? {
+  private fun findAndResolveTransitionTarget(root: FlowNode<*, *, *>, event: Event, path: Path): ResolvedTransition? {
     val nodes = root.findChildrenAlongPath(path).takeIf { it.isNotEmpty() }
       ?: error("no nodes at $path found")
     var transition: ((TransitionEnv<*, *, *>) -> Unit)? = null
@@ -83,21 +91,33 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     }
     return (transition ?: root.eventTransitions[event])
       ?.let { spec ->
-        val transitionEnv = TransitionEnv<S, A, R>(path)
+        val transitionEnv = ResultTransitionEnv<S, A, R, Any>(path, "finishResultT")
         spec.invoke(transitionEnv)
-        transitionEnv.destination
-      }?.let { destination ->
-        when (destination) {
-          is TransitionEnv.Destination.Path -> destination.path
-          is TransitionEnv.Destination.RelativeNode -> {
-            val resolveContext = transitionNodePath
-              ?: error("unexpected null path for resolve. destination = $destination")
-            resolveContext.dropLast(1)?.let { it append destination.key } ?: Path(destination.key)
-          }
-        }
+        ResolvedTransition(
+          targetPath = transitionEnv.destination?.resolve(transitionNodePath),
+          finishResult = transitionEnv.finishResult,
+          queuedEvents = transitionEnv.queuedEvents.orEmpty()
+        )
       }
   }
+
+  private fun TransitionEnv.Destination.resolve(transitionNodePath: Path?): Path {
+    return when (this) {
+      is TransitionEnv.Destination.Path -> this.path
+      is TransitionEnv.Destination.RelativeNode -> {
+        val resolveContext = transitionNodePath
+          ?: error("unexpected null path for resolve. destination = $this")
+        resolveContext.dropLast(1)?.let { it append this.key } ?: Path(this.key)
+      }
+    }
+  }
 }
+
+private data class ResolvedTransition(
+  val targetPath: Path?,
+  val finishResult: Any?,
+  val queuedEvents: List<Event>
+)
 
 private fun List<() -> Unit>.join(): () -> Unit {
   return { for (a in this) a() }
