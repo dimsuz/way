@@ -42,21 +42,16 @@ class NavigationService<T : Any>(
         backStack.dropLast(backStack.lastIndex - existingIndex)
       }
       else -> {
-        val parent = newPath.dropLast(1)
-        if (parent != null) {
-          backStack.filter { entry ->
-            // See NOTE_CLEAR_BACK_STACK_RULES
-            var isLeafAlongThePath = false
-            var partial: Path? = parent
-            while (partial != null && !isLeafAlongThePath) {
-              isLeafAlongThePath = entry.dropLast(1) == partial
-              partial = partial.dropLast(1)
-            }
-            isLeafAlongThePath
-          }.plus(newPath)
-        } else {
-          backStack.plus(newPath)
-        }
+        backStack.filter { entry ->
+          // See NOTE_CLEAR_BACK_STACK_RULES
+          var isLeafAlongThePath = false
+          var partial: Path? = newPath.parent
+          while (partial != null && !isLeafAlongThePath) {
+            isLeafAlongThePath = entry.dropLast(1) == partial
+            partial = partial.dropLast(1)
+          }
+          isLeafAlongThePath || entry.parent == newPath.parent
+        }.plus(newPath)
       }
     }
   }

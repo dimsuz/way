@@ -129,6 +129,58 @@ class NavigationServiceTest : ShouldSpec({
       )
     }
 
+    should("clear back stack on switching same level flow to screen") {
+      val commands = mutableListOf<BackStack>()
+      val service = scheme(
+        initial = "flowA",
+        node(
+          "flowA",
+          scheme(
+            initial = "A1",
+            node("A1", on("T", target = "#F1")),
+          )
+        ),
+        node(
+          "F1",
+        ),
+      ).toCollectingService(commands)
+
+      service.sendEvent(Event("T")) // flowA.A1 -> F1
+
+      commands.last().shouldContainExactly(
+        path("F1")
+      )
+    }
+
+    should("clear back stack on switching same level flow to screen in nested case") {
+      val commands = mutableListOf<BackStack>()
+      val service = scheme(
+        initial = "flowX",
+        node(
+          "flowX",
+          scheme(
+            initial = "flowA",
+            node(
+              "flowA",
+              scheme(
+                initial = "A1",
+                node("A1", on("T", target = "#flowX.F1")),
+              )
+            ),
+            node(
+              "F1",
+            ),
+          )
+        ),
+      ).toCollectingService(commands)
+
+      service.sendEvent(Event("T")) // flowA.A1 -> F1
+
+      commands.last().shouldContainExactly(
+        path("flowX.F1")
+      )
+    }
+
     should("push without clearing back stack when switching to sub-flows") {
       val commands = mutableListOf<BackStack>()
       val service = scheme(

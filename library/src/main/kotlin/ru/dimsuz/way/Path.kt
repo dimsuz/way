@@ -28,6 +28,8 @@ value class Path private constructor(private val segments: List<NodeKey>) {
     return if (segments.size == 1) null else Path(segments.drop(1))
   }
 
+  val parent: Path? get() = dropLast(1)
+
   val size get() = segments.size
 
   fun take(count: Int): Path {
