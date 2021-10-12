@@ -38,7 +38,7 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     return this
   }
 
-  fun on(event: Event, transition: TransitionEnv<S, A, R>.() -> Unit): FlowNodeBuilder<S, A, R> {
+  fun on(event: Event.Name, transition: TransitionEnv<S, A, R>.() -> Unit): FlowNodeBuilder<S, A, R> {
     draft.eventTransitions[event] = transition as (TransitionEnv<*, *, *>) -> Unit
     return this
   }

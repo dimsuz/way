@@ -55,7 +55,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
       TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() }?.composeIn(actionEnv))
     } else if (resolvedTransition?.targetPath == null && resolvedTransition?.finishResult != null) {
-      TransitionResult(path, actions = { listOf(Event.DONE) })
+      TransitionResult(path, actions = { listOf(Event(Event.Name.DONE, resolvedTransition.finishResult)) })
     } else if (resolvedTransition?.targetPath != null && resolvedTransition.finishResult != null) {
       error("only one of navigateTo() or finish() can be called")
     } else if (resolvedTransition != null && resolvedTransition.targetPath == null &&
@@ -74,7 +74,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     var transition: ((TransitionEnv<*, *, *>) -> Unit)? = null
     var transitionNodePath: Path? = null
     for (i in nodes.lastIndex downTo 0) {
-      val transitionSpec = nodes[i].eventTransitions[event]
+      val transitionSpec = nodes[i].eventTransitions[event.name]
       if (transitionSpec != null) {
         transition = transitionSpec
         transitionNodePath = path.take(i + 1)
@@ -83,15 +83,21 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     }
     if (transitionNodePath == null) {
       // no node in path contains matching transition, maybe root has it?
-      val transitionSpec = root.eventTransitions[event]
+      val transitionSpec = root.eventTransitions[event.name]
       if (transitionSpec != null) {
         transition = transitionSpec
         transitionNodePath = Path(NODE_KEY_ROOT)
       }
     }
-    return (transition ?: root.eventTransitions[event])
+    return (transition ?: root.eventTransitions[event.name])
       ?.let { spec ->
-        val transitionEnv = ResultTransitionEnv<S, A, R, Any>(path, "finishResultT")
+        val transitionEnv = if (event.name.value.startsWith(Event.Name.DONE.value)) {
+          val result = event.payload ?: error("expected payload in internal DONE event")
+          ResultTransitionEnv<S, A, R, Any>(path, result)
+        } else {
+          TransitionEnv(path)
+        }
+
         spec.invoke(transitionEnv)
         ResolvedTransition(
           targetPath = transitionEnv.destination?.resolve(transitionNodePath),

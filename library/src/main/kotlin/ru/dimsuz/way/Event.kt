@@ -1,10 +1,12 @@
 package ru.dimsuz.way
 
-@JvmInline
-value class Event(val name: String) {
-  companion object {
-    val BACK = Event("BACK")
+data class Event(val name: Name, val payload: Any? = null) {
+  @JvmInline
+  value class Name(val value: String) {
+    companion object {
+      val BACK = Name("BACK")
 
-    internal val DONE = Event("DONE")
+      internal val DONE = Name("DONE")
+    }
   }
 }

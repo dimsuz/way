@@ -68,7 +68,7 @@ data class NodeScheme(
             rowSpan = transitions.size
           }
           if (transitions.isNotEmpty()) {
-            cell(transitions.entries.first().key.name)
+            cell(transitions.entries.first().key.value)
             cell(transitions.entries.first().value.key)
           } else {
             cell("no transitions") {
@@ -79,7 +79,7 @@ data class NodeScheme(
         transitions.entries.drop(1).forEach { (event, target) ->
           row {
             repeat(level) { cell("") { borderTop = false; borderBottom = false } }
-            cell(event.name)
+            cell(event.value)
             cell(target.key)
           }
         }
@@ -109,15 +109,15 @@ fun <T> SchemeNode.fold(f: (SchemeNode, List<T>) -> T): T {
 }
 
 sealed class SchemeNode {
-  data class Atomic(val transitions: Map<Event, NodeKey>) : SchemeNode()
+  data class Atomic(val transitions: Map<Event.Name, NodeKey>) : SchemeNode()
   data class Compound(val scheme: NodeScheme) : SchemeNode()
 }
 
-fun on(event: String, target: String): Pair<Event, NodeKey> {
-  return Event(event) to NodeKey(target)
+fun on(event: String, target: String): Pair<Event.Name, NodeKey> {
+  return Event.Name(event) to NodeKey(target)
 }
 
-fun node(id: String, vararg transition: Pair<Event, NodeKey>): Pair<String, SchemeNode> {
+fun node(id: String, vararg transition: Pair<Event.Name, NodeKey>): Pair<String, SchemeNode> {
   return id to SchemeNode.Atomic(transition.toMap())
 }
 

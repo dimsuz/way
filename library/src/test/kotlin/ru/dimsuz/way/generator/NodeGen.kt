@@ -56,7 +56,7 @@ private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> 
     return this.fold { schemeNode, states ->
       val s = when (schemeNode) {
         is SchemeNode.Atomic -> {
-          schemeNode.transitions.filterKeys { events.contains(it) }.map { it.value.key }
+          schemeNode.transitions.filterKeys { events.any { e -> e.name == it } }.map { it.value.key }
         }
         is SchemeNode.Compound -> emptyList()
       }
@@ -74,7 +74,7 @@ private class SchemeWithEventShrinker : Shrinker<Pair<NodeScheme, List<Event>>> 
       nodes = this.nodes.entries.mapNotNull { (key, node) ->
         when (node) {
           is SchemeNode.Atomic -> {
-            val transitions = node.transitions.filter { (event, _) -> events.contains(event) }
+            val transitions = node.transitions.filter { (event, _) -> events.any { it.name == event } }
             if (transitions.isNotEmpty() || targets.contains(key))
               key to node.copy(transitions = transitions) else null
           }
@@ -115,7 +115,7 @@ fun Arb.Companion.eventSequence(scheme: NodeScheme): Arb<List<Event>> {
             break
           }
           val transition = Arb.element(currentNode.transitions.entries).next(rs)
-          events.add(transition.key)
+          events.add(Event(name = transition.key))
           currentNode = containingNode.scheme.nodes[transition.value.key]
             ?: error("failed to find node '${transition.value.key}' in the containing node")
         }
@@ -168,7 +168,7 @@ private fun Arb.Companion.schemeNodes(maxLevel: Int): Arb<Map<String, SchemeNode
     }
     val scheme = HashMap<String, SchemeNode>(atomicNodes.size + compoundNodeKeys.size)
     atomicNodes.forEach { (key, transitions) ->
-      scheme[key] = SchemeNode.Atomic(transitions.entries.associate { Event(it.key) to NodeKey(it.value) })
+      scheme[key] = SchemeNode.Atomic(transitions.entries.associate { Event.Name(it.key) to NodeKey(it.value) })
     }
     compoundNodeKeys.forEach { key ->
       scheme[key] = SchemeNode.Compound(Arb.scheme(maxLevel - 1).next(rs))
@@ -234,7 +234,7 @@ fun Arb.Companion.nodeKey(): Arb<NodeKey> {
 }
 
 fun Arb.Companion.event(): Arb<Event> {
-  return Arb.eventName().map { Event(it) }
+  return Arb.eventName().map { Event(Event.Name(it)) }
 }
 
 private class SchemeShrinker : Shrinker<NodeScheme> {

@@ -213,7 +213,7 @@ private data class TestTransition(
 )
 
 private fun send(event: String, expectPath: String): TestTransition {
-  return TestTransition(Event(event), Path.fromNonEmptyListOf(expectPath.split(".").map { NodeKey(it) }))
+  return TestTransition(Event(Event.Name(event)), Path.fromNonEmptyListOf(expectPath.split(".").map { NodeKey(it) }))
 }
 
 private fun runTests(

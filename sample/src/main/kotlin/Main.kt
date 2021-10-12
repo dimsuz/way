@@ -38,19 +38,19 @@ fun main() {
       screenBuilder
         .onEntry { println("entered $path") }
         .onExit { println("exited $path") }
-        .on(Event("CANT_LOGIN_REQUESTED")) {
+        .on(Event.Name("CANT_LOGIN_REQUESTED")) {
           navigateTo(NodeKey("cant_login"))
         }
-        .on(Event("FINGERPRINT_SET")) {
+        .on(Event.Name("FINGERPRINT_SET")) {
           navigateTo(NodeKey("permissions"))
         }
-        .on(Event("GENERIC_EVENT")) {
+        .on(Event.Name("GENERIC_EVENT")) {
           println("doing some generic side effect (printing stuff) and nothing more")
         }
-        .on(Event("GENERIC_EVENT1")) {
+        .on(Event.Name("GENERIC_EVENT1")) {
           updateState { s -> s.copy(timer = 33) }
         }
-        .on(Event.BACK) {
+        .on(Event.Name.BACK) {
           finish(LoginFlowResult.Dismissed)
         }
         .build()

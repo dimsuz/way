@@ -6,7 +6,7 @@ import com.github.michaelbull.result.unwrap
 import java.util.UUID
 
 class SubFlowBuilder<S : Any, A : Any, R : Any, SR : Any> internal constructor(
-  private val extraTransitionsSink: MutableMap<Event, (TransitionEnv<*, *, *>) -> Unit>
+  private val extraTransitionsSink: MutableMap<Event.Name, (TransitionEnv<*, *, *>) -> Unit>
 ) {
   private var flowNode: FlowNode<*, *, SR>? = null
   private var onResultTransition: ((ResultTransitionEnv<S, A, R, SR>) -> Unit)? = null
@@ -28,10 +28,12 @@ class SubFlowBuilder<S : Any, A : Any, R : Any, SR : Any> internal constructor(
   fun build(): Result<FlowNode<*, *, SR>, Error> {
     flowNode = (flowNode as FlowNode<Any, *, SR>?)?.let { node ->
       if (onResultTransition != null) {
-        val internalDoneEvent = Event(UUID.randomUUID().toString())
-        extraTransitionsSink[internalDoneEvent] = onResultTransition as (TransitionEnv<*, *, *>) -> Unit
+        val internalDoneEventName = Event.Name("${Event.Name.DONE.value}_${UUID.randomUUID()}")
+        extraTransitionsSink[internalDoneEventName] = onResultTransition as (TransitionEnv<*, *, *>) -> Unit
         node.newBuilder()
-          .on(Event.DONE) { sendEvent(internalDoneEvent) }
+          .on(Event.Name.DONE) {
+            sendEvent(Event(internalDoneEventName, event?.payload))
+          }
           .build(node.state)
           .unwrap()
       } else node

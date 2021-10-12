@@ -11,6 +11,7 @@ import io.kotest.property.arbitrary.filter
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.map
 import io.kotest.property.checkAll
+import ru.dimsuz.way.Event.Name
 import ru.dimsuz.way.entity.NodeScheme
 import ru.dimsuz.way.entity.SchemeNode
 import ru.dimsuz.way.entity.node
@@ -45,7 +46,7 @@ class NavigationServiceTest : ShouldSpec({
         node("b"),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("UNKNOWN"))
+      service.sendEvent(Event(Name("UNKNOWN")))
 
       commands.last().shouldContainExactly(path("a"))
     }
@@ -58,7 +59,7 @@ class NavigationServiceTest : ShouldSpec({
         node("b"),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T"))
+      service.sendEvent(Event(Name("T")))
 
       commands.last().shouldContainExactly(path("a"))
     }
@@ -72,8 +73,8 @@ class NavigationServiceTest : ShouldSpec({
         node("c")
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T"))
-      service.sendEvent(Event("U"))
+      service.sendEvent(Event(Name("T")))
+      service.sendEvent(Event(Name("U")))
 
       commands.last().shouldContainExactly(
         path("a"),
@@ -91,9 +92,9 @@ class NavigationServiceTest : ShouldSpec({
         node("c", on("BACK", target = "a")),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T"))
-      service.sendEvent(Event("U"))
-      service.sendEvent(Event("BACK"))
+      service.sendEvent(Event(Name("T")))
+      service.sendEvent(Event(Name("U")))
+      service.sendEvent(Event(Name("BACK")))
 
       commands.last().shouldContainExactly(
         path("a"),
@@ -121,8 +122,8 @@ class NavigationServiceTest : ShouldSpec({
         ),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T")) // flowA.A1 -> flowA.A2
-      service.sendEvent(Event("T")) // flowA.A2 -> flowB.B1
+      service.sendEvent(Event(Name("T"))) // flowA.A1 -> flowA.A2
+      service.sendEvent(Event(Name("T"))) // flowA.A2 -> flowB.B1
 
       commands.last().shouldContainExactly(
         path("flowB.B1")
@@ -145,7 +146,7 @@ class NavigationServiceTest : ShouldSpec({
         ),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T")) // flowA.A1 -> F1
+      service.sendEvent(Event(Name("T"))) // flowA.A1 -> F1
 
       commands.last().shouldContainExactly(
         path("F1")
@@ -174,7 +175,7 @@ class NavigationServiceTest : ShouldSpec({
         ),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T")) // flowA.A1 -> F1
+      service.sendEvent(Event(Name("T"))) // flowA.A1 -> F1
 
       commands.last().shouldContainExactly(
         path("flowX.F1")
@@ -202,8 +203,8 @@ class NavigationServiceTest : ShouldSpec({
         ),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T")) // flowA.A1 -> flowA.A2
-      service.sendEvent(Event("T")) // flowA.A2 -> flowB.B1
+      service.sendEvent(Event(Name("T"))) // flowA.A1 -> flowA.A2
+      service.sendEvent(Event(Name("T"))) // flowA.A2 -> flowB.B1
 
       commands.last().shouldContainExactly(
         path("flowA.A1"),
@@ -247,19 +248,19 @@ class NavigationServiceTest : ShouldSpec({
         ),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T")) // flowA.A1 -> flowA.A2
-      service.sendEvent(Event("T")) // flowA.A2 -> flowA.A3
-      service.sendEvent(Event("T")) // flowA.A3 -> flowA.flowB.B1
-      service.sendEvent(Event("T")) // flowA.flowB.B1 -> flowA.flowB.B2
-      service.sendEvent(Event("T")) // flowA.flowB.B2 -> flowA.flowB.flowC.C1
-      service.sendEvent(Event("T")) // flowA.flowB.flowC.C1 -> flowA.flowB.flowC.C2
-      service.sendEvent(Event("T")) // flowA.flowB.flowC.C2 -> flowA.flowB.B2
+      service.sendEvent(Event(Name("T"))) // flowA.A1 -> flowA.A2
+      service.sendEvent(Event(Name("T"))) // flowA.A2 -> flowA.A3
+      service.sendEvent(Event(Name("T"))) // flowA.A3 -> flowA.flowB.B1
+      service.sendEvent(Event(Name("T"))) // flowA.flowB.B1 -> flowA.flowB.B2
+      service.sendEvent(Event(Name("T"))) // flowA.flowB.B2 -> flowA.flowB.flowC.C1
+      service.sendEvent(Event(Name("T"))) // flowA.flowB.flowC.C1 -> flowA.flowB.flowC.C2
+      service.sendEvent(Event(Name("T"))) // flowA.flowB.flowC.C2 -> flowA.flowB.B2
 
       commands.last().shouldContainExactly(
         path("flowA.A1"), path("flowA.A2"), path("flowA.A3"), path("flowA.flowB.B1"), path("flowA.flowB.B2")
       )
 
-      service.sendEvent(Event("Z")) // flowA.flowB.B2 -> flowA.A2
+      service.sendEvent(Event(Name("Z"))) // flowA.flowB.B2 -> flowA.A2
 
       commands.last().shouldContainExactly(
         path("flowA.A1"), path("flowA.A2")
@@ -299,11 +300,11 @@ class NavigationServiceTest : ShouldSpec({
         ),
       ).toCollectingService(commands)
 
-      service.sendEvent(Event("T")) // flowA.A1 -> flowA.A2
-      service.sendEvent(Event("T")) // flowA.A2 -> flowA.A3
-      service.sendEvent(Event("T")) // flowA.A3 -> flowA.flowB.B1
-      service.sendEvent(Event("T")) // flowA.flowB.B1 -> flowA.flowB.B2
-      service.sendEvent(Event("T")) // flowA.flowB.B2 -> flowA.flowC.C1
+      service.sendEvent(Event(Name("T"))) // flowA.A1 -> flowA.A2
+      service.sendEvent(Event(Name("T"))) // flowA.A2 -> flowA.A3
+      service.sendEvent(Event(Name("T"))) // flowA.A3 -> flowA.flowB.B1
+      service.sendEvent(Event(Name("T"))) // flowA.flowB.B1 -> flowA.flowB.B2
+      service.sendEvent(Event(Name("T"))) // flowA.flowB.B2 -> flowA.flowC.C1
 
       // flowA1 and flowA2 are on the same level, so flowB gets cleared, but parent
       // flow's states "flowA.S*" remain in back stack
@@ -433,7 +434,7 @@ class NavigationServiceTest : ShouldSpec({
           .newBuilder()
           // add a final screen which will cause all child flows to exit
           .addScreenNode(NodeKey("final_screen")) { builder -> builder.build() }
-          .on(Event("FINISH")) { navigateTo(NodeKey("final_screen")) }
+          .on(Name("FINISH")) { navigateTo(NodeKey("final_screen")) }
           .build(Unit)
           .unwrap()
 
@@ -445,7 +446,7 @@ class NavigationServiceTest : ShouldSpec({
           service.sendEvent(it)
         }
         // this will bubble up to the very top and transition to final_screen
-        service.sendEvent(Event("FINISH"))
+        service.sendEvent(Event(Name("FINISH")))
 
         // Assert
         try {
@@ -470,7 +471,7 @@ class NavigationServiceTest : ShouldSpec({
         .toFlowNode<Unit, Unit, Unit>(
           initialState = Unit,
           modifyScreenNode = { builder ->
-            builder.onEntry { sendEvent(Event("EN")) }
+            builder.onEntry { sendEvent(Event(Name("EN"))) }
           }
         )
         .toCollectingService(commands)
@@ -489,13 +490,13 @@ class NavigationServiceTest : ShouldSpec({
         .toFlowNode<Unit, Unit, Unit>(
           initialState = Unit,
           modifyScreenNode = { builder ->
-            builder.onExit { sendEvent(Event("EX")) }
+            builder.onExit { sendEvent(Event(Name("EX"))) }
           }
         )
         .toCollectingService(commands)
 
       // currently, on "a". EN → move to "b" and cause a.onExit to fire. Which will send "EX" and move to "c"
-      service.sendEvent(Event("EN"))
+      service.sendEvent(Event(Name("EN")))
 
       commands.last().shouldContainExactly(path("a"), path("b"), path("c"))
     }
@@ -511,7 +512,7 @@ class NavigationServiceTest : ShouldSpec({
             .of(
               FlowNodeBuilder<Unit, Unit, String>()
                 .setInitial(NodeKey("b1"))
-                .addScreenNode(NodeKey("b1")) { sb -> sb.on(Event("T")) { finish("finishResultT") }.build() }
+                .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish("finishResultT") }.build() }
                 .build(Unit)
                 .unwrap()
             )
@@ -527,7 +528,7 @@ class NavigationServiceTest : ShouldSpec({
 
       val service = node.toCollectingService(commands)
 
-      service.sendEvent(Event("T"))
+      service.sendEvent(Event(Name("T")))
 
       commands.last().shouldContainExactly(path("a1"))
     }
