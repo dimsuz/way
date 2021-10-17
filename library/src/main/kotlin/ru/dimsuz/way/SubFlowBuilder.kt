@@ -32,7 +32,7 @@ class SubFlowBuilder<S : Any, A : Any, R : Any, SR : Any> internal constructor(
         extraTransitionsSink[internalDoneEventName] = onResultTransition as (TransitionEnv<*, *, *>) -> Unit
         node.newBuilder()
           .on(Event.Name.DONE) {
-            sendEvent(Event(internalDoneEventName, event?.payload))
+            sendEvent(Event(internalDoneEventName, event.payload))
           }
           .build(node.state)
           .unwrap()

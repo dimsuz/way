@@ -91,7 +91,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     }
     return (transition ?: root.eventTransitions[event.name])
       ?.let { spec ->
-        val transitionEnv = if (event.name.value.startsWith(Event.Name.DONE.value)) {
+        val transitionEnv = if (event.name.value.startsWith(Event.Name.DONE.value + "_")) {
           val result = event.payload ?: error("expected payload in internal DONE event")
           ResultTransitionEnv<S, A, R, Any>(path, event, result)
         } else {

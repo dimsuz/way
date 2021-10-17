@@ -164,6 +164,46 @@ class NavigationMachineTest : ShouldSpec({
           states.size shouldBe events.size
         }
       }
+
+      should("transition between screens when using flow-transitions") {
+        val node = FlowNodeBuilder<Unit, Unit, Unit>()
+          .setInitial(NodeKey("a"))
+          .addScreenNode(NodeKey("a")) { builder -> builder.build() }
+          .addScreenNode(NodeKey("b")) { builder -> builder.build() }
+          .on(Event.Name("T")) { navigateTo(NodeKey("b")) }
+          .build(Unit)
+          .unwrap()
+
+        runTests(
+          node,
+          send(event = "T", expectPath = "b"),
+        )
+      }
+
+      should("transition between screens when using flow-transitions in nested-flow") {
+        val node = FlowNodeBuilder<Unit, Unit, Unit>()
+          .setInitial(NodeKey("flowA"))
+          .addFlowNode<Unit>(NodeKey("flowA")) { flowABuilder ->
+            flowABuilder.of(
+              FlowNodeBuilder<Unit, Unit, Unit>()
+                .setInitial(NodeKey("a"))
+                .addScreenNode(NodeKey("a")) { builder -> builder.build() }
+                .addScreenNode(NodeKey("b")) { builder -> builder.build() }
+                .on(Event.Name("T")) { navigateTo(NodeKey("b")) }
+                .build(Unit)
+                .unwrap()
+            )
+              .build()
+              .unwrap()
+          }
+          .build(Unit)
+          .unwrap()
+
+        runTests(
+          node,
+          send(event = "T", expectPath = "flowA.b"),
+        )
+      }
     }
   }
 
@@ -220,7 +260,14 @@ private fun runTests(
   scheme: NodeScheme,
   vararg expectations: TestTransition
 ) {
-  val machine = NavigationMachine(scheme.toFlowNode(Unit))
+  runTests(scheme.toFlowNode<Unit, Unit, Unit>(Unit), *expectations)
+}
+
+private fun runTests(
+  flowNode: FlowNode<*, *, *>,
+  vararg expectations: TestTransition
+) {
+  val machine = NavigationMachine(flowNode)
   var currentEventIndex = 0
   machine.runTransitionSequence(
     nextEventSelector = { expectations.getOrNull(currentEventIndex)?.event },
