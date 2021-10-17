@@ -7,6 +7,7 @@ data class Event(val name: Name, val payload: Any? = null) {
       val BACK = Name("BACK")
 
       internal val DONE = Name("DONE")
+      internal val INIT = Name("INIT")
     }
   }
 }

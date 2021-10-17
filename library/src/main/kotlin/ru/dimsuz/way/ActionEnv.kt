@@ -1,7 +1,8 @@
 package ru.dimsuz.way
 
 open class ActionEnv<S : Any, A : Any>(
-  val path: Path
+  val path: Path,
+  val event: Event,
 ) {
   var queuedEvents: MutableList<Event>? = null
     private set
@@ -11,10 +12,6 @@ open class ActionEnv<S : Any, A : Any>(
       TODO()
     }
   val state: S
-    get() {
-      TODO()
-    }
-  val event: Event?
     get() {
       TODO()
     }

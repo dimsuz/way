@@ -17,7 +17,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
   fun transitionToInitial(): TransitionResult {
     val entrySet = root.findChildrenAlongPath(initial)
-    val transitionEnv = TransitionEnv<S, A, R>(initial)
+    val transitionEnv = TransitionEnv<S, A, R>(initial, Event(Event.Name.INIT))
     val list = mutableListOf<(ActionEnv<*, *>) -> Unit>()
     root.onEntry?.also { list.add(it) }
     entrySet.forEach { node ->
@@ -42,7 +42,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     return if (resolvedTransition?.targetPath != null && resolvedTransition.finishResult == null) {
       val resolvedTargetPath = root.fullyResolvePath(resolvedTransition.targetPath)
 
-      val actionEnv = ActionEnv<S, A>(path)
+      val actionEnv = ActionEnv<S, A>(path, event)
       val exitSet = findExitNodes(root, path, resolvedTargetPath)
       val actions = mutableListOf<(ActionEnv<*, *>) -> Unit>()
       exitSet.forEach { n ->
@@ -93,9 +93,9 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       ?.let { spec ->
         val transitionEnv = if (event.name.value.startsWith(Event.Name.DONE.value)) {
           val result = event.payload ?: error("expected payload in internal DONE event")
-          ResultTransitionEnv<S, A, R, Any>(path, result)
+          ResultTransitionEnv<S, A, R, Any>(path, event, result)
         } else {
-          TransitionEnv(path)
+          TransitionEnv(path, event)
         }
 
         spec.invoke(transitionEnv)
