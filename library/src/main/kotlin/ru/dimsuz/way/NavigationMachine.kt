@@ -72,12 +72,14 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     val nodes = root.findChildrenAlongPath(path).takeIf { it.isNotEmpty() }
       ?: error("no nodes at $path found")
     var transition: ((TransitionEnv<*, *, *>) -> Unit)? = null
+    var transitionNode: Node? = null
     var transitionNodePath: Path? = null
     for (i in nodes.lastIndex downTo 0) {
       val transitionSpec = nodes[i].eventTransitions[event.name]
       if (transitionSpec != null) {
         transition = transitionSpec
         transitionNodePath = path.take(i + 1)
+        transitionNode = nodes[i]
         break
       }
     }
@@ -87,6 +89,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       if (transitionSpec != null) {
         transition = transitionSpec
         transitionNodePath = Path(NODE_KEY_ROOT)
+        transitionNode = root
       }
     }
     return (transition ?: root.eventTransitions[event.name])
@@ -100,20 +103,32 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
         spec.invoke(transitionEnv)
         ResolvedTransition(
-          targetPath = transitionEnv.destination?.resolve(transitionNodePath),
+          targetPath = transitionEnv.destination?.resolve(transitionNodePath, transitionNode),
           finishResult = transitionEnv.finishResult,
           queuedEvents = transitionEnv.queuedEvents.orEmpty()
         )
       }
   }
 
-  private fun TransitionEnv.Destination.resolve(transitionNodePath: Path?): Path {
+  private fun TransitionEnv.Destination.resolve(transitionNodePath: Path?, transitionNode: Node?): Path {
     return when (this) {
       is TransitionEnv.Destination.Path -> this.path
       is TransitionEnv.Destination.RelativeNode -> {
-        val resolveContext = transitionNodePath
-          ?: error("unexpected null path for resolve. destination = $this")
-        resolveContext.dropLast(1)?.let { it append this.key } ?: Path(this.key)
+        // When resolving relative destinations is required to differentiate between flows and paths:
+        //  - if resolving destination "screenB" against screen node "flowA.screenA", result must be
+        //    "flowA.screenB", i.e. dropLast(1) must be used
+        //  - if resolving destination "screenB" against flow nodw "flowA", dropLast is not needed
+        requireNotNull(transitionNodePath) { "unexpected null path for resolve. destination = $this" }
+        requireNotNull(transitionNode) { "unexpected null node for resolve. destination = $this" }
+        if (transitionNode is FlowNode<*, *, *>) {
+          if (transitionNodePath == Path(NODE_KEY_ROOT)) {
+            Path(this.key)
+          } else {
+            transitionNodePath append this.key
+          }
+        } else {
+          transitionNodePath.dropLast(1)?.let { it append this.key } ?: Path(this.key)
+        }
       }
     }
   }
