@@ -1,3 +1,8 @@
+plugins {
+  kotlin("jvm")
+  id("com.android.application") version "7.2.1" apply false
+}
+
 dependencies {
   implementation(project(":way"))
 
