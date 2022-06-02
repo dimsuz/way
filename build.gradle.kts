@@ -1,5 +1,5 @@
 plugins {
-  kotlin("jvm") version "1.5.21"
+  kotlin("jvm") version "1.6.10"
   `maven-publish`
   signing
   id("org.jetbrains.dokka") version "1.4.20"
@@ -8,7 +8,6 @@ plugins {
 allprojects {
   repositories {
     mavenCentral()
-    jcenter()
   }
 }
 
