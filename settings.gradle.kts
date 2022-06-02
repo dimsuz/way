@@ -1,3 +1,3 @@
 rootProject.name = "way"
-include("library")
-include("sample")
+include("way")
+include("way-sample")

@@ -6,9 +6,7 @@ bin/
 gen/
 .gradle/
 .externalNativeBuild
-/build
-/sample/build
-/library/build
+build
 /captures
 /.idea/*
 !/.idea/codeStyles/
