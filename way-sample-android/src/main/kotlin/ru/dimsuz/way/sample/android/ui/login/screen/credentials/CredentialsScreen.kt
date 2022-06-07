@@ -1,29 +1,19 @@
 package ru.dimsuz.way.sample.android.ui.login.screen.credentials
 
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import ru.dimsuz.way.sample.android.ui.foundation.BaseScreen
+import ru.dimsuz.way.sample.android.ui.foundation.BaseUi
+import ru.dimsuz.way.sample.android.ui.foundation.BaseViewModel
 import ru.dimsuz.way.sample.android.ui.foundation.Screen
 
-class CredentialsScreen : Screen {
+class CredentialsScreen(viewModel: CredentialsViewModel) : BaseScreen<CredentialsViewState, CredentialsViewModel>(viewModel) {
   companion object {
     val key = "credentials"
   }
 
-  private val viewModel = CredentialsViewModel()
-
   @Composable
-  override fun Content() {
-    CredentialsUi(viewModel = viewModel)
-  }
-
-  override fun onAttach() {
-    viewModel.onAttach()
-  }
-
-  override fun onDetach() {
-    viewModel.onDetach()
-  }
-
-  override fun destroy() {
-    viewModel.destroy()
+  override fun Content(viewModel: CredentialsViewModel) {
+    CredentialsUi(viewModel)
   }
 }

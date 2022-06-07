@@ -1,6 +1,7 @@
 package ru.dimsuz.way.sample.android.flow.login
 
 import com.github.michaelbull.result.unwrap
+import ru.dimsuz.way.Event
 import ru.dimsuz.way.FlowNode
 import ru.dimsuz.way.FlowNodeBuilder
 import ru.dimsuz.way.NodeKey
@@ -24,6 +25,9 @@ object LoginFlow {
         builder
           .on(FlowEvent.Continue.name) {
             finish(FlowResult.Success)
+          }
+          .on(Event.Name.BACK) {
+            navigateTo(NodeKey(CredentialsScreen.key))
           }
           .build()
       }

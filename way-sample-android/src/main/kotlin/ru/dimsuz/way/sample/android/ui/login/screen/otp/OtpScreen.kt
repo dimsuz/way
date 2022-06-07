@@ -1,11 +1,15 @@
 package ru.dimsuz.way.sample.android.ui.login.screen.otp
 
-import ru.dimsuz.way.Event
+import androidx.compose.runtime.Composable
+import ru.dimsuz.way.sample.android.ui.foundation.BaseScreen
 
-object OtpScreen {
-  val key = "login"
+class OtpScreen(viewModel: OtpViewModel) : BaseScreen<OtpViewState, OtpViewModel>(viewModel) {
+  companion object {
+    val key = "otp"
+  }
 
-  object FlowEvent {
-    val Continue = Event(Event.Name("continue"))
+  @Composable
+  override fun Content(viewModel: OtpViewModel) {
+    OtpUi(viewModel)
   }
 }
