@@ -17,7 +17,6 @@ open class ActionEnv<S : Any, A : Any>(
     }
 
   fun updateState(transform: (state: S) -> S) {
-    TODO()
   }
 
   fun sendEvent(event: Event) {

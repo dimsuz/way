@@ -5,13 +5,9 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,7 +30,6 @@ import ru.dimsuz.way.sample.android.ui.foundation.Screen
 import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsScreen
 import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsViewModel
 import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpScreen
-import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpUi
 import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpViewModel
 
 class MainActivity : ComponentActivity() {
