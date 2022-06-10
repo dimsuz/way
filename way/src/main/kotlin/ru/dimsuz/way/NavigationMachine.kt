@@ -43,13 +43,15 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       val resolvedTargetPath = root.fullyResolvePath(resolvedTransition.targetPath)
 
       val actionEnv = ActionEnv<S, A>(path, event)
-      val exitSet = findExitNodes(root, path, resolvedTargetPath)
+      val exitSet = findExitNodes(path, resolvedTargetPath)
       val actions = mutableListOf<(ActionEnv<*, *>) -> Unit>()
-      exitSet.forEach { n ->
+      exitSet.forEach { nodePath ->
+        val n = root.findChild(nodePath) ?: error("failed to find node at $nodePath")
         if (n.onExit != null) n.onExit?.let { actions.add(it) }
       }
-      val entrySet = findEntryNodes(root, path, resolvedTargetPath)
-      entrySet.forEach { n ->
+      val entrySet = findEntryNodes(path, resolvedTargetPath)
+      entrySet.forEach { nodePath ->
+        val n = root.findChild(nodePath) ?: error("failed to find node at $nodePath")
         if (n.onEntry != null) n.onEntry?.let { actions.add(it) }
       }
 
@@ -140,23 +142,45 @@ private data class ResolvedTransition(
   val queuedEvents: List<Event>
 )
 
-private fun List<() -> Unit>.join(): () -> Unit {
-  return { for (a in this) a() }
-}
 
 data class TransitionResult(
   val path: Path,
   val actions: (() -> List<Event>)?,
 )
 
-private fun findEntryNodes(root: FlowNode<*, *, *>, path: Path, newPath: Path): List<Node> {
-  val commonPrefixSize = newPath.findCommonPrefix(path)?.size ?: 0
-  return root.findChildrenAlongPath(newPath).drop(commonPrefixSize)
+private fun findEntryNodes(path: Path, newPath: Path): List<Path> {
+  val commonPrefix = newPath.findCommonPrefix(path)
+  // path:    o.a.b.c
+  // newPath: o.a.x.y.z
+  //   => [ "o.a.x", "o.a.x.y", "o.a.x.y.z" ]
+  //
+  // path:    o.a.b.c
+  // newPath: x.y.z
+  //   => [ "x", "x.y", "x.y.z" ]
+  return when {
+    path == newPath -> emptyList()
+    commonPrefix != null -> {
+      val suffix = newPath.drop(commonPrefix.size) ?: error("null suffix")
+      suffix.tail?.asIterable()?.scan(commonPrefix.append(suffix.firstSegment)) { acc, key -> acc.append(key) }
+        ?: listOf(commonPrefix.append(suffix.firstSegment))
+    }
+    else -> {
+      newPath.tail?.asIterable()
+        ?.scan(newPath.take(1)) { acc, key -> acc.append(key) }
+        ?: listOf(newPath)
+    }
+  }
 }
 
-private fun findExitNodes(root: FlowNode<*, *, *>, path: Path, newPath: Path): List<Node> {
-  val commonPrefixSize = newPath.findCommonPrefix(path)?.size ?: 0
-  return root.findChildrenAlongPath(path).drop(commonPrefixSize)
+private fun findExitNodes(path: Path, newPath: Path): List<Path> {
+  // path:    o.a.b.c.d
+  // newPath: o.a.x.y.z
+  //   => [ "o.a.b.c.d", "o.a.b.c", "o.a.b"  ]
+  //
+  // path:    o.a.b.c
+  // newPath: x.y.z
+  //   => [ "o.a.b.c", "o.a.b", "o.a", "o" ]
+  return findEntryNodes(newPath, path)
 }
 
 /**
@@ -170,10 +194,10 @@ private fun Path.isChildOf(other: Path): Boolean {
 }
 
 /**
- * "flowA.flowB.screenA".isChildOf("flowA") // [ flowA ]
- * "flowA.flowB.screenA".isChildOf("flowA.flowB") // [ flowA, flowB ]
- * "flowA.flowB.screenA".isChildOf("flowC") // [ ]
- * "flowA.flowB.screenA".isChildOf("flowA.flowC") // [ flowA ]
+ * "flowA.flowB.screenA".findCommonPrefix("flowA") // [ flowA ]
+ * "flowA.flowB.screenA".findCommonPrefix("flowA.flowB") // [ flowA, flowB ]
+ * "flowA.flowB.screenA".findCommonPrefix("flowC") // [ ]
+ * "flowA.flowB.screenA".findCommonPrefix("flowA.flowC") // [ flowA ]
  */
 private fun Path.findCommonPrefix(other: Path): Path? {
   var p1: Path? = this

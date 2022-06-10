@@ -25,7 +25,7 @@ value class Path private constructor(private val segments: List<NodeKey>) {
   }
 
   val tail: Path? get() {
-    return if (segments.size == 1) null else Path(segments.drop(1))
+    return if (segments.size == 1) null else fromNonEmptyListOf(segments.drop(1))
   }
 
   val parent: Path? get() = dropLast(1)
@@ -36,8 +36,12 @@ value class Path private constructor(private val segments: List<NodeKey>) {
     return fromNonEmptyListOf(segments.take(count))
   }
 
+  fun drop(count: Int): Path? {
+    return if (count >= segments.size) null else fromNonEmptyListOf(segments.drop(count))
+  }
+
   fun dropLast(count: Int): Path? {
-    return if (segments.size <= count) null else Path(segments.dropLast(count))
+    return if (segments.size <= count) null else fromNonEmptyListOf(segments.dropLast(count))
   }
 
   infix fun append(segment: NodeKey): Path {
@@ -46,6 +50,10 @@ value class Path private constructor(private val segments: List<NodeKey>) {
 
   override fun toString(): String {
     return segments.joinToString(".") { it.key }
+  }
+
+  fun asIterable(): Iterable<NodeKey> {
+    return segments
   }
 }
 
