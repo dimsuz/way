@@ -533,6 +533,37 @@ class NavigationServiceTest : ShouldSpec({
       commands.last().shouldContainExactly(path("a1"))
     }
   }
+
+  context("flow state management") {
+    should("update state in node actions") {
+      val commands = mutableListOf<BackStack>()
+      val state: Map<String, Int> = emptyMap()
+      FlowNodeBuilder<Map<String, Int>, Unit, Unit>()
+        .setInitial(NodeKey("a"))
+        .onEntry { updateState { it.plus("flowNode_onEntry" to 1) } }
+        .onExit { updateState { it.plus("flowNode_onExit" to 1) } }
+        .addScreenNode(NodeKey("a")) { builder ->
+          builder
+            .onEntry { updateState { it.plus("screenNode_onEntry" to 1) } }
+            .onExit { updateState { it.plus("screenNode_onExit" to 1) } }
+            .on(Name("EN")) { navigateTo(NodeKey("b")) }
+            .build()
+        }
+        .addScreenNode(NodeKey("b")) { builder ->
+          builder.build()
+        }
+        .build(state)
+        .unwrap()
+        .toCollectingService(commands)
+
+      TODO()
+//      commands.last().shouldContainExactly(path("a"), path("b"))
+    }
+
+    should("update independent state in sub flows") {
+      TODO()
+    }
+  }
 })
 
 private fun NodeScheme.toCollectingService(

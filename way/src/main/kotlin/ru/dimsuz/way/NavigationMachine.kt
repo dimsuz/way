@@ -36,23 +36,25 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     }
   }
 
-  @Suppress("MoveLambdaOutsideParentheses")
   fun transition(path: Path, event: Event): TransitionResult {
     val resolvedTransition = findAndResolveTransitionTarget(root, event, path)
     return if (resolvedTransition?.targetPath != null && resolvedTransition.finishResult == null) {
       val resolvedTargetPath = root.fullyResolvePath(resolvedTransition.targetPath)
 
-      val actionEnv = ActionEnv<S, A>(path, event)
       val exitSet = findExitNodes(path, resolvedTargetPath)
-      val actions = mutableListOf<(ActionEnv<*, *>) -> Unit>()
+      val actions = mutableListOf<() -> ActionResult>()
       exitSet.forEach { nodePath ->
         val n = root.findChild(nodePath) ?: error("failed to find node at $nodePath")
-        if (n.onExit != null) n.onExit?.let { actions.add(it) }
+        val (ancestorFlowPath, ancestorFlowNode) = root.findAncestorFlowNode(nodePath)
+        val env = ActionEnv<Any, Any>(path, event, ancestorFlowNode.state)
+        if (n.onExit != null) n.onExit?.let { actions.add(it.bindTo(env, ancestorFlowPath)) }
       }
       val entrySet = findEntryNodes(path, resolvedTargetPath)
       entrySet.forEach { nodePath ->
         val n = root.findChild(nodePath) ?: error("failed to find node at $nodePath")
-        if (n.onEntry != null) n.onEntry?.let { actions.add(it) }
+        val (ancestorFlowPath, ancestorFlowNode) = root.findAncestorFlowNode(nodePath)
+        val env = ActionEnv<Any, Any>(path, event, ancestorFlowNode.state)
+        if (n.onEntry != null) n.onEntry?.let { actions.add(it.bindTo(env, ancestorFlowPath)) }
       }
 
       TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() }?.composeIn(actionEnv))
@@ -119,7 +121,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
         // When resolving relative destinations is required to differentiate between flows and paths:
         //  - if resolving destination "screenB" against screen node "flowA.screenA", result must be
         //    "flowA.screenB", i.e. dropLast(1) must be used
-        //  - if resolving destination "screenB" against flow nodw "flowA", dropLast is not needed
+        //  - if resolving destination "screenB" against flow node "flowA", dropLast is not needed
         requireNotNull(transitionNodePath) { "unexpected null path for resolve. destination = $this" }
         requireNotNull(transitionNode) { "unexpected null node for resolve. destination = $this" }
         if (transitionNode is FlowNode<*, *, *>) {
@@ -142,10 +144,27 @@ private data class ResolvedTransition(
   val queuedEvents: List<Event>
 )
 
+private fun ((ActionEnv<*, *>) -> Unit).bindTo(env: ActionEnv<*, *>, parentFlowNodePath: Path): () -> ActionResult {
+  return {
+    this(env)
+    ActionResult(
+      events = env.queuedEvents.orEmpty(),
+      parentFlowNodePath = parentFlowNodePath,
+      updatedState = env.updatedState
+    )
+  }
+}
 
 data class TransitionResult(
   val path: Path,
+  //TODO val actions: (() -> ActionResult)?,
   val actions: (() -> List<Event>)?,
+)
+
+data class ActionResult(
+  val events: List<Event>,
+  val parentFlowNodePath: Path,
+  val updatedState: Any
 )
 
 private fun findEntryNodes(path: Path, newPath: Path): List<Path> {
@@ -241,6 +260,18 @@ private fun FlowNode<*, *, *>.findChild(path: Path): Node? {
     node
   }
 }
+
+/**
+ * Finds a first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
+ * If node at [path] is itself a FlowNode, returns it.
+ */
+private fun FlowNode<*, *, *>.findAncestorFlowNode(path: Path): Pair<Path, FlowNode<*, *, *>> {
+  val nodes = findChildrenAlongPath(path)
+  val list = nodes.dropLastWhile { it !is FlowNode<*, *, *> }
+  val nodePath = path.dropLast(nodes.size - list.size) ?: error("path is null")
+  return nodePath to list.last() as FlowNode<*, *, *>
+}
+
 
 private fun FlowNode<*, *, *>.findChildrenAlongPath(path: Path): List<Node> {
   var p: Path? = path

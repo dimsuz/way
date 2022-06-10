@@ -244,6 +244,10 @@ class NavigationMachineTest : ShouldSpec({
         }
       }
     }
+
+    should("execute entry/exit actions in correct order") {
+      TODO()
+    }
   }
 })
 
