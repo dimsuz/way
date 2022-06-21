@@ -1,6 +1,6 @@
 package ru.dimsuz.way
 
-open class ActionEnv<S : Any, A : Any>(
+open class ActionEnv<S : Any, A : Any> internal constructor(
   val path: Path,
   val event: Event,
   val state: S,
@@ -8,7 +8,7 @@ open class ActionEnv<S : Any, A : Any>(
   internal var queuedEvents: MutableList<Event>? = null
     private set
 
-  internal var updatedState: S = state
+  internal var updatedState: S? = null
     private set
 
   val args: A
@@ -17,7 +17,7 @@ open class ActionEnv<S : Any, A : Any>(
     }
 
   fun updateState(transform: (state: S) -> S) {
-    updatedState = transform(updatedState)
+    updatedState = transform(updatedState ?: state)
   }
 
   fun sendEvent(event: Event) {

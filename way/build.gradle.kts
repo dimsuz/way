@@ -90,8 +90,8 @@ if (pomArtifactId != null) {
         val versionName: String by project
         url = if (versionName.endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
         credentials {
-          username = project.property("NEXUS_USERNAME")?.toString()
-          password = project.property("NEXUS_PASSWORD")?.toString()
+          username = project.findProperty("NEXUS_USERNAME")?.toString()
+          password = project.findProperty("NEXUS_PASSWORD")?.toString()
         }
       }
     }

@@ -299,7 +299,13 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
   if (ENABLE_TRANSITION_LOG) {
     println("<start> → $currentPath")
   }
-  if (executeActions) initialResult.actions?.invoke()
+  if (executeActions) {
+    initialResult.actions?.forEach { action ->
+      val result = action()
+      val node = root.findChild(result.parentFlowNodePath)
+      result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
+    }
+  }
 
   while (true) {
     val nextEvent = nextEventSelector(currentPath)
@@ -315,7 +321,13 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
     if (ENABLE_TRANSITION_LOG) {
       println("$prev x ${nextEvent.name} -> $currentPath")
     }
-    if (executeActions) transitionResult.actions?.invoke()
+    if (executeActions) {
+      transitionResult.actions?.forEach { action ->
+        val result = action()
+        val node = root.findChild(result.parentFlowNodePath)
+        result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
+      }
+    }
     onTransition(prev, nextEvent, currentPath)
   }
 }

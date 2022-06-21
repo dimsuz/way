@@ -15,21 +15,33 @@ class NavigationService<T : Any>(
     val previousPath = backStack.last()
     val transitionResult = machine.transition(backStack.last(), event)
     val newBackStack = recordTransition(backStack, previousPath, transitionResult.path)
-    val events = transitionResult.actions?.invoke()
+    val events = mutableListOf<Event>()
+    transitionResult.actions?.forEach { action ->
+      val result = action()
+      val node = machine.root.findChild(result.parentFlowNodePath)
+      result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
+      events.addAll(result.events)
+    }
     if (backStack != newBackStack) {
       val oldBackStack = backStack
       backStack = newBackStack
       onCommand(commandBuilder(oldBackStack, newBackStack))
     }
-    events?.forEach { sendEvent(it) }
+    events.forEach { sendEvent(it) }
   }
 
   fun start() {
     backStack = listOf(machine.initial)
     val transitionResult = machine.transitionToInitial()
-    val events = transitionResult.actions?.invoke()
+    val events = mutableListOf<Event>()
+    transitionResult.actions?.forEach { action ->
+      val result = action()
+      val node = machine.root.findChild(result.parentFlowNodePath)
+      result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
+      events.addAll(result.events)
+    }
     onCommand(commandBuilder(emptyList(), backStack))
-    events?.forEach { sendEvent(it) }
+    events.forEach { sendEvent(it) }
   }
 
   private fun recordTransition(backStack: BackStack, previousPath: Path, newPath: Path): BackStack {

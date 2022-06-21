@@ -1,6 +1,7 @@
 package ru.dimsuz.way
 
-open class TransitionEnv<S : Any, A : Any, R : Any>(path: Path, event: Event) : ActionEnv<S, A>(path, event) {
+open class TransitionEnv<S : Any, A : Any, R : Any>(path: Path, event: Event, state: S) :
+  ActionEnv<S, A>(path, event, state) {
 
   internal sealed class Destination {
     data class RelativeNode(val key: NodeKey) : Destination()
