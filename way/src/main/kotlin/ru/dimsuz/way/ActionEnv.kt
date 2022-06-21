@@ -3,7 +3,7 @@ package ru.dimsuz.way
 open class ActionEnv<S : Any, A : Any> internal constructor(
   val path: Path,
   val event: Event,
-  val state: S,
+  val readState: () -> S,
 ) {
   internal var queuedEvents: MutableList<Event>? = null
     private set
@@ -15,6 +15,9 @@ open class ActionEnv<S : Any, A : Any> internal constructor(
     get() {
       TODO()
     }
+
+  val state: S
+    get() = readState()
 
   fun updateState(transform: (state: S) -> S) {
     updatedState = transform(updatedState ?: state)
