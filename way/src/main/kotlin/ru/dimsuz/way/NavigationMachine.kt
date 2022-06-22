@@ -17,9 +17,9 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
   fun transitionToInitial(): TransitionResult {
     val entrySet = findEntryNodes(Path(NODE_KEY_ROOT), initial)
-    val transitionEnv = TransitionEnv<S, A, R>(initial, Event(Event.Name.INIT), readState = { root.state })
     val actions = mutableListOf<() -> ActionResult>()
-    root.onEntry?.also { actions.add(it.bindTo(transitionEnv, Path(NODE_KEY_ROOT))) }
+    val actionEnv = ActionEnv<S, A>(Path(NODE_KEY_ROOT), Event(Event.Name.INIT), readState = { root.state })
+    root.onEntry?.also { actions.add(it.bindTo(actionEnv, Path(NODE_KEY_ROOT))) }
     entrySet.forEach { nodePath ->
       val n = root.findChild(nodePath) ?: error("failed to find node at $nodePath")
       val ancestorFlowPath = root.findAncestorFlowNode(nodePath)
@@ -116,9 +116,9 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       ?.let { spec ->
         val transitionEnv = if (event.name.value.startsWith(Event.Name.DONE.value + "_")) {
           val result = event.payload ?: error("expected payload in internal DONE event")
-          ResultTransitionEnv<Any, A, R, Any>(path, event, { root.findStateForNode(transitionNodePath!!) }, result)
+          ResultTransitionEnv<Any, A, R, Any>(event, result)
         } else {
-          TransitionEnv(path, event, readState = { root.findStateForNode(transitionNodePath!!) })
+          TransitionEnv(event)
         }
 
         spec.invoke(transitionEnv)
@@ -283,7 +283,7 @@ fun FlowNode<*, *, *>.findChild(path: Path): Node? {
 private fun FlowNode<*, *, *>.findAncestorFlowNode(path: Path): Path {
   val nodes = findChildrenAlongPath(path)
   val list = nodes.dropLastWhile { it !is FlowNode<*, *, *> }
-  return path.dropLast(nodes.size - list.size) ?: error("path is null")
+  return path.dropLast(nodes.size - list.size) ?: Path(NODE_KEY_ROOT)
 }
 
 /**
