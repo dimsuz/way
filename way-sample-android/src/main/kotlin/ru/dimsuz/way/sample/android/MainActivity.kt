@@ -23,14 +23,10 @@ import ru.dimsuz.way.CommandBuilder
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.NavigationMachine
 import ru.dimsuz.way.NavigationService
-import ru.dimsuz.way.NodeKey
+import ru.dimsuz.way.Path
 import ru.dimsuz.way.sample.android.flow.app.AppFlow
-import ru.dimsuz.way.sample.android.ui.foundation.FlowEventSink
+import ru.dimsuz.way.sample.android.flow.foundation.compose.FlowState
 import ru.dimsuz.way.sample.android.ui.foundation.Screen
-import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsScreen
-import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsViewModel
-import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpScreen
-import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpViewModel
 
 class MainActivity : ComponentActivity() {
   private val scope = CoroutineScope(Dispatchers.Main)
@@ -39,10 +35,10 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
 
     val eventSink = MutableSharedFlow<Event>()
-    val commandBuilder = ComposableCommandBuilder { scope.launch { eventSink.emit(it) } }
+    val commandBuilder = ComposableCommandBuilder()
 
     val navigationService = NavigationService(
-      machine = NavigationMachine(AppFlow.buildNode()),
+      machine = NavigationMachine(AppFlow.buildNode(eventSink = {  scope.launch { eventSink.emit(it) } })),
       commandBuilder = commandBuilder,
       onCommand = {
         it.invoke()
@@ -78,24 +74,42 @@ class MainActivity : ComponentActivity() {
   }
 }
 
-private class ComposableCommandBuilder(
-  private val eventSink: FlowEventSink,
-) : CommandBuilder<() -> Unit> {
+private class ComposableCommandBuilder : CommandBuilder<() -> Unit> {
   var currentScreen: Screen? by mutableStateOf(null)
+  private val activeScreens: MutableMap<Path, Screen> = mutableMapOf()
 
-  override fun invoke(oldBackStack: BackStack, newBackStack: BackStack): () -> Unit {
+  override fun invoke(oldBackStack: BackStack, newBackStack: BackStack, newState: Any): () -> Unit {
     return {
+      require(newState is FlowState) {
+        "expected navigation state to be instance of ${FlowState::class.simpleName}, " +
+          "but got an instance of ${newState::class.simpleName}"
+      }
       println(buildString {
         appendLine("building command")
         append("  old backstack: $oldBackStack")
         append("  new backstack: $newBackStack")
+        appendLine()
+        append("  new state: $newState")
       })
-      currentScreen = when(newBackStack.lastOrNull()?.lastSegment) {
-        NodeKey(CredentialsScreen.key) -> CredentialsScreen(CredentialsViewModel(eventSink))
-        NodeKey(OtpScreen.key) -> OtpScreen(OtpViewModel(eventSink))
-        else -> error("don't know how to make screen for a backstack: $newBackStack")
+      if (newBackStack.isNotEmpty()) {
+        currentScreen = getOrCreateActiveScreen(newBackStack.last(), newState)
+          ?: error("don't know how to make screen for a backstack: $newBackStack")
+        cleanUpActiveScreens(newBackStack)
       }
       Log.d("builder", "curr screen $currentScreen")
+    }
+  }
+
+  private fun getOrCreateActiveScreen(path: Path, flowState: FlowState): Screen? {
+    return activeScreens[path]
+      ?: flowState.screens[path.lastSegment]?.also { activeScreens[path] = it }
+  }
+
+  private fun cleanUpActiveScreens(backStack: BackStack) {
+    activeScreens.forEach { (path, screen) ->
+      if (path !in backStack) {
+        screen.destroy()
+      }
     }
   }
 }

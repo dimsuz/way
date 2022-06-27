@@ -25,7 +25,11 @@ class NavigationService<T : Any>(
     if (backStack != newBackStack) {
       val oldBackStack = backStack
       backStack = newBackStack
-      onCommand(commandBuilder(oldBackStack, newBackStack))
+      onCommand(commandBuilder(
+        oldBackStack,
+        newBackStack,
+        machine.root.findAncestorFlowNodeState(transitionResult.path)
+      ))
     }
     events.forEach { sendEvent(it) }
   }
@@ -40,7 +44,11 @@ class NavigationService<T : Any>(
       result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
       events.addAll(result.events)
     }
-    onCommand(commandBuilder(emptyList(), backStack))
+    onCommand(commandBuilder(
+      emptyList(),
+      backStack,
+      machine.root.findAncestorFlowNodeState(transitionResult.path)
+    ))
     events.forEach { sendEvent(it) }
   }
 
@@ -69,7 +77,7 @@ class NavigationService<T : Any>(
   }
 }
 
-typealias CommandBuilder<T> = (oldBackStack: BackStack, newBackStack: BackStack) -> T
+typealias CommandBuilder<T> = (oldBackStack: BackStack, newBackStack: BackStack, newState: Any) -> T
 typealias BackStack = List<Path>
 
 sealed class BackStackCommand {

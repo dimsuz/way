@@ -7,6 +7,8 @@ import ru.dimsuz.way.FlowNode
 import ru.dimsuz.way.FlowNodeBuilder
 import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.sample.android.flow.foundation.FlowResult
+import ru.dimsuz.way.sample.android.flow.foundation.compose.FlowState
+import ru.dimsuz.way.sample.android.ui.foundation.FlowEventSink
 import ru.dimsuz.way.sample.android.ui.foundation.Screen
 import ru.dimsuz.way.sample.android.ui.login.FlowEvent
 import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsScreen
@@ -17,18 +19,18 @@ import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpViewModel
 object LoginFlow {
 
   data class State(
-    val screens: Map<NodeKey, Screen> = emptyMap(),
+    override val screens: Map<NodeKey, Screen> = emptyMap(),
     val logs: List<String> = emptyList(),
-  )
+  ) : FlowState
 
-  fun buildNode(): FlowNode<State, Unit, FlowResult> {
+  fun buildNode(eventSink: FlowEventSink): FlowNode<State, Unit, FlowResult> {
     return FlowNodeBuilder<State, Unit, FlowResult>()
       .setInitial(NodeKey(CredentialsScreen.key))
       .addScreenNode(NodeKey(CredentialsScreen.key)) { builder ->
         builder
           .onEntry {
             Log.d("LoginFlow", "onEntry credentials, state is ${state.logs}")
-            val viewModel = CredentialsViewModel { sendEvent(it) }
+            val viewModel = CredentialsViewModel(eventSink)
             updateState {
               it.copy(
                 screens = state.screens.plus(
@@ -50,7 +52,6 @@ object LoginFlow {
             }
           }
           .on(FlowEvent.Continue.name) {
-            updateState { it.copy(logs = it.logs + "credentials onContinue") }
             navigateTo(NodeKey(OtpScreen.key))
           }
           .build()
@@ -59,8 +60,7 @@ object LoginFlow {
         builder
           .onEntry {
             Log.d("LoginFlow", "onEntry otp, state is ${state.logs}")
-            // TODO use update state!
-            val viewModel = OtpViewModel { sendEvent(it) }
+            val viewModel = OtpViewModel(eventSink)
             updateState {
               it.copy(
                 screens = state.screens.plus(
@@ -85,7 +85,6 @@ object LoginFlow {
             finish(FlowResult.Success)
           }
           .on(Event.Name.BACK) {
-            updateState { it.copy(logs = it.logs + "otp onContinue") }
             navigateTo(NodeKey(CredentialsScreen.key))
           }
           .build()

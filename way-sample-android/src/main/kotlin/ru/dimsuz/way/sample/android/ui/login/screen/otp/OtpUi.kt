@@ -19,8 +19,7 @@ import kotlin.random.Random
 fun OtpUi(viewModel: OtpViewModel) {
   BaseUi(viewModel = viewModel) { state ->
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-      val color = remember { Color(Random.nextInt(256), Random.nextInt(256), Random.nextInt(256)) }
-      Text(state.title, color = contentColorFor(backgroundColor = color), modifier = Modifier.background(color).padding(16.dp))
+      Text(state.title, color = contentColorFor(backgroundColor = state.color), modifier = Modifier.background(state.color).padding(16.dp))
       Button(onClick = viewModel::onContinue) {
         Text("Continue")
       }
