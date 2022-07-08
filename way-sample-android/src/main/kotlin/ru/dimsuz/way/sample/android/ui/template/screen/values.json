@@ -1,0 +1,14 @@
+[
+    {
+        "name": "folder_name",
+        "label": "Folder name"
+    },
+    {
+        "name": "feature_name",
+        "label": "Feature name"
+    },
+    {
+        "name": "screen_name",
+        "value": "{{^folder_name#capitalize}}"
+    }
+]
