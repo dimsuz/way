@@ -8,6 +8,7 @@ import ru.dimsuz.way.FlowNodeBuilder
 import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.sample.android.flow.foundation.FlowResult
 import ru.dimsuz.way.sample.android.flow.foundation.compose.FlowState
+import ru.dimsuz.way.sample.android.flow.permissions.PermissionsFlow
 import ru.dimsuz.way.sample.android.ui.foundation.FlowEventSink
 import ru.dimsuz.way.sample.android.ui.foundation.Screen
 import ru.dimsuz.way.sample.android.ui.login.FlowEvent
@@ -81,13 +82,21 @@ object LoginFlow {
               )
             }
           }
-          .on(FlowEvent.Continue.name) {
-            finish(FlowResult.Success)
+          .on(FlowEvent.OtpSuccess.name) {
+            navigateTo(PermissionsFlow.key)
+          }
+          .on(FlowEvent.OtpError.name) {
+            Log.d("LoginFlow", "TODO handle otp error")
           }
           .on(Event.Name.BACK) {
             navigateTo(NodeKey(CredentialsScreen.key))
           }
           .build()
+      }
+      .addFlowNode<FlowResult>(PermissionsFlow.key) { builder ->
+        builder.of(PermissionsFlow.buildNode(eventSink))
+          .build()
+          .unwrap()
       }
       .build(State())
       .unwrap()

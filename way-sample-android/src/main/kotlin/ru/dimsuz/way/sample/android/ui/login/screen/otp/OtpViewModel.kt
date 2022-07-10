@@ -12,8 +12,12 @@ class OtpViewModel(
 ) : BaseViewModel<OtpViewState>() {
   override val viewStateFlow: StateFlow<OtpViewState> = MutableStateFlow(OtpViewState())
 
-  fun onContinue() {
-    eventSink.sendEvent(FlowEvent.Continue)
+  fun onContinueSuccess() {
+    eventSink.sendEvent(FlowEvent.OtpSuccess)
+  }
+
+  fun onContinueError() {
+    eventSink.sendEvent(FlowEvent.OtpError)
   }
 
   fun onBack() {
