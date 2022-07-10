@@ -15,7 +15,10 @@ import ru.dimsuz.way.sample.android.ui.foundation.BaseUi
 @Composable
 fun {{^screen_name}}Ui(viewModel: {{^screen_name}}ViewModel) {
   BaseUi(viewModel = viewModel) { state ->
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp).padding(24.dp)) {
+    Column(
+      modifier = Modifier.padding(24.dp),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
       Text(state.title, color = contentColorFor(backgroundColor = state.color), modifier = Modifier.background(state.color).padding(16.dp))
       Button(onClick = viewModel::onContinue) {
         Text("Continue")

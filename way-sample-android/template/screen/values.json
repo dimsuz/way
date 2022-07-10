@@ -1,0 +1,14 @@
+[
+    {
+        "name": "folder_name",
+        "label": "Folder name (ui/<feature_name>/screen/<folder_name>)"
+    },
+    {
+        "name": "feature_name",
+        "label": "Feature folder name (ui/<feature_name>/screen/<folder_name>)"
+    },
+    {
+        "name": "screen_name",
+        "label": "Screen name (Pascal Case)"
+    }
+]
