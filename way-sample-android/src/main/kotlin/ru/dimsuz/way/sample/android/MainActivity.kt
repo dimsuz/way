@@ -53,16 +53,9 @@ class MainActivity : ComponentActivity() {
 
     setContent {
       MaterialTheme {
-        var previousScreen by remember { mutableStateOf(commandBuilder.currentScreen) }
         commandBuilder.currentScreen?.Content()
         LaunchedEffect(commandBuilder.currentScreen) {
           commandBuilder.currentScreen?.onAttach()
-        }
-        DisposableEffect(commandBuilder.currentScreen) {
-          onDispose {
-            previousScreen?.onDetach()
-            previousScreen = commandBuilder.currentScreen
-          }
         }
       }
     }
@@ -76,6 +69,7 @@ class MainActivity : ComponentActivity() {
 
 private class ComposableCommandBuilder : CommandBuilder<() -> Unit> {
   var currentScreen: Screen? by mutableStateOf(null)
+  var previousScreen: Screen? by mutableStateOf(null)
   private val activeScreens: MutableMap<Path, Screen> = mutableMapOf()
 
   override fun invoke(oldBackStack: BackStack, newBackStack: BackStack, newState: Any): () -> Unit {
@@ -94,6 +88,10 @@ private class ComposableCommandBuilder : CommandBuilder<() -> Unit> {
       if (newBackStack.isNotEmpty()) {
         currentScreen = getOrCreateActiveScreen(newBackStack.last(), newState)
           ?: error("don't know how to make screen for a backstack: $newBackStack")
+        if (previousScreen != currentScreen) {
+          previousScreen?.onDetach()
+          previousScreen = currentScreen
+        }
         cleanUpActiveScreens(newBackStack)
       }
       Log.d("builder", "curr screen $currentScreen")
