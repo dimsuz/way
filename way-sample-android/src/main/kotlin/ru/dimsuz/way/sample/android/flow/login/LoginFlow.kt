@@ -93,8 +93,15 @@ object LoginFlow {
           }
           .build()
       }
-      .addFlowNode<FlowResult>(PermissionsFlow.key) { builder ->
+      .addFlowNode<PermissionsFlow.Result>(PermissionsFlow.key) { builder ->
         builder.of(PermissionsFlow.buildNode(eventSink))
+          .onResult {
+            when (result) {
+              PermissionsFlow.Result.Granted -> TODO("navigate to main")
+              PermissionsFlow.Result.Denied -> navigateTo(NodeKey(CredentialsScreen.key))
+              PermissionsFlow.Result.Dismissed -> navigateTo(NodeKey(CredentialsScreen.key))
+            }
+          }
           .build()
           .unwrap()
       }
