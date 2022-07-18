@@ -330,7 +330,7 @@ class NavigationServiceTest : ShouldSpec({
                 .onExit { screenNodeExitEventCount++ }
             }
           )
-        val service = NavigationService(NavigationMachine(root), { _, _ -> }, { })
+        val service = NavigationService(NavigationMachine(root), { _, _, _ -> }, { })
         service.start()
 
         // Act
@@ -361,7 +361,7 @@ class NavigationServiceTest : ShouldSpec({
                 .onExit { screenNodeExitEventCount++ }
             }
           )
-        val service = NavigationService(NavigationMachine(root), { _, _ -> }, { })
+        val service = NavigationService(NavigationMachine(root), { _, _, _ -> }, { })
         service.start()
 
         // Act
@@ -396,7 +396,7 @@ class NavigationServiceTest : ShouldSpec({
           .unwrap()
 
         var currentBackStack: BackStack? = null
-        val service = NavigationService(NavigationMachine(root), { _, stack -> currentBackStack = stack }, { })
+        val service = NavigationService(NavigationMachine(root), { _, stack, _ -> currentBackStack = stack }, { })
         service.start()
 
         // Act
@@ -438,7 +438,7 @@ class NavigationServiceTest : ShouldSpec({
           .build(Unit)
           .unwrap()
 
-        val service = NavigationService(NavigationMachine(root), { _, _ -> }, { })
+        val service = NavigationService(NavigationMachine(root), { _, _, _ -> }, { })
         service.start()
 
         // Act
@@ -572,7 +572,7 @@ private fun NodeScheme.toCollectingService(
 ): NavigationService<BackStack> {
   return this.toService(
     initialState = Unit,
-    commandBuilder = { _, new -> new },
+    commandBuilder = { _, new, _ -> new },
     onCommand = { commandSink.add(it) }
   ).apply { if (start) start() }
 }
@@ -582,7 +582,7 @@ private fun FlowNode<*, *, *>.toCollectingService(
   start: Boolean = true,
 ): NavigationService<BackStack> {
   return this.toService(
-    commandBuilder = { _, new -> new },
+    commandBuilder = { _, new, _ -> new },
     onCommand = { commandSink.add(it) }
   ).apply { if (start) start() }
 }
