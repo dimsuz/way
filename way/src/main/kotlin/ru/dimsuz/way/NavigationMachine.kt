@@ -287,11 +287,18 @@ private fun FlowNode<*, *, *>.findAncestorFlowNodePath(path: Path): Path {
 }
 
 /**
- * Finds a first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
- * If node at [path] is itself a FlowNode, returns it.
+ * Finds a state of first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
+ * If node at [path] is itself a FlowNode, returns its state.
  */
 internal fun FlowNode<*, *, *>.findAncestorFlowNodeState(path: Path): Any {
-  return (findChild(findAncestorFlowNodePath(path)) as FlowNode<Any, *, *>).state
+  val ancestorPath = findAncestorFlowNodePath(path)
+  return if (ancestorPath == Path(NODE_KEY_ROOT)) {
+    this.state
+  } else {
+    val ancestorNode = findChild(ancestorPath) as FlowNode<Any, *, *>?
+      ?: error("failed to find ancestor flow node for path: $path")
+    ancestorNode.state
+  }
 }
 
 private fun FlowNode<*, *, *>.findChildrenAlongPath(path: Path): List<Node> {
