@@ -532,6 +532,54 @@ class NavigationServiceTest : ShouldSpec({
 
       commands.last().shouldContainExactly(path("a1"))
     }
+
+    should("properly finishes parent flow in response to child onResult") {
+      val commands = mutableListOf<BackStack>()
+      val flowC = FlowNodeBuilder<Unit, Unit, FlowResultY>()
+          .setInitial(NodeKey("c1"))
+          .addScreenNode(NodeKey("c1")) { sb -> sb.on(Name("T")) { finish(FlowResultY.Y2) }.build() }
+          .build(Unit)
+          .unwrap()
+
+      val flowB = FlowNodeBuilder<Unit, Unit, FlowResultX>()
+        .setInitial(NodeKey("b1"))
+        .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { navigateTo(NodeKey("flowC")) }.build() }
+        .addFlowNode<FlowResultY>(NodeKey("flowC")) { builder ->
+          builder.of(flowC)
+            .onResult {
+              when (result) {
+                FlowResultY.Y1 -> finish(FlowResultX.X1)
+                FlowResultY.Y2 -> finish(FlowResultX.X3)
+              }
+            }
+            .build()
+            .unwrap()
+        }
+        .build(Unit)
+        .unwrap()
+
+      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+        .setInitial(NodeKey("flowB"))
+        .addFlowNode<FlowResultX>(NodeKey("flowB")) { builder ->
+          builder
+            .of(flowB)
+            .onResult {
+              if (result == FlowResultX.X3) navigateTo(NodeKey("a1"))
+            }
+            .build()
+            .unwrap()
+        }
+        .addScreenNode(NodeKey("a1")) { builder -> builder.build() }
+        .build(Unit)
+        .unwrap()
+
+      val service = node.toCollectingService(commands)
+
+      service.sendEvent(Event(Name("T"))) // flowB.b1 → flowC
+      service.sendEvent(Event(Name("T"))) // flowC → finish flowC
+
+      commands.last().shouldContainExactly(path("a1"))
+    }
   }
 
   context("flow state management") {
@@ -586,3 +634,6 @@ private fun FlowNode<*, *, *>.toCollectingService(
     onCommand = { commandSink.add(it) }
   ).apply { if (start) start() }
 }
+
+enum class FlowResultX { X1, X2, X3 }
+enum class FlowResultY { Y1, Y2 }
