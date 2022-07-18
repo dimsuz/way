@@ -80,12 +80,6 @@ class NavigationService<T : Any>(
 typealias CommandBuilder<T> = (oldBackStack: BackStack, newBackStack: BackStack, newState: Any) -> T
 typealias BackStack = List<Path>
 
-sealed class BackStackCommand {
-  data class Push(val path: BackStackEntry) : BackStackCommand()
-  data class Pop(val count: Int) : BackStackCommand()
-  data class Replace(val newBackStack: List<BackStackEntry>) : BackStackCommand()
-}
-
 data class BackStackEntry(
   val key: NodeKey,
   val arguments: Any? = null,
