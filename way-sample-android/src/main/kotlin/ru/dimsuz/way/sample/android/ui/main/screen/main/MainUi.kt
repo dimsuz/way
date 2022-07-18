@@ -20,8 +20,8 @@ fun MainUi(viewModel: MainViewModel) {
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
       Text(state.title, color = contentColorFor(backgroundColor = state.color), modifier = Modifier.background(state.color).padding(16.dp))
-      Button(onClick = viewModel::onContinue) {
-        Text("Continue")
+      Button(onClick = viewModel::onViewProfile) {
+        Text("View Profile")
       }
       Button(onClick = viewModel::onBack) {
         Text("Back")

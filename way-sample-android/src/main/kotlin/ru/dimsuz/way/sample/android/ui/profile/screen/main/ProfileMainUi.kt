@@ -20,8 +20,8 @@ fun ProfileMainUi(viewModel: ProfileMainViewModel) {
       verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
       Text(state.title, color = contentColorFor(backgroundColor = state.color), modifier = Modifier.background(state.color).padding(16.dp))
-      Button(onClick = viewModel::onContinue) {
-        Text("Continue")
+      Button(onClick = viewModel::onCapturePhoto) {
+        Text("Capture Photo")
       }
       Button(onClick = viewModel::onBack) {
         Text("Back")

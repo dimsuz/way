@@ -9,6 +9,7 @@ import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.sample.android.flow.foundation.FlowResult
 import ru.dimsuz.way.sample.android.flow.foundation.compose.FlowState
 import ru.dimsuz.way.sample.android.flow.login.LoginFlow
+import ru.dimsuz.way.sample.android.flow.main.MainFlow
 import ru.dimsuz.way.sample.android.ui.foundation.FlowEventSink
 import ru.dimsuz.way.sample.android.ui.foundation.Screen
 
@@ -23,6 +24,20 @@ object AppFlow {
       .setInitial(NodeKey("login"))
       .addFlowNode<FlowResult>(NodeKey("login")) { builder ->
         builder.of(LoginFlow.buildNode(eventSink))
+          .onResult {
+            when (result) {
+              FlowResult.Success -> navigateTo(MainFlow.key)
+              FlowResult.Dismissed -> {
+                Log.d("AppFlow", "finishing app flow")
+                // TODO stack overflow if uncomment this: finish(result)
+              }
+            }
+          }
+          .build()
+          .unwrap()
+      }
+      .addFlowNode<FlowResult>(NodeKey("main")) { builder ->
+        builder.of(MainFlow.buildNode(eventSink))
           .onResult {
             Log.d("AppFlow", "finishing app flow")
             // TODO stack overflow if uncomment this: finish(result)

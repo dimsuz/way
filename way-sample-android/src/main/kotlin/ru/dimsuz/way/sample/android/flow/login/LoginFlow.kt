@@ -97,7 +97,7 @@ object LoginFlow {
         builder.of(PermissionsFlow.buildNode(eventSink))
           .onResult {
             when (result) {
-              PermissionsFlow.Result.Granted -> TODO("navigate to main")
+              PermissionsFlow.Result.Granted -> finish(FlowResult.Success)
               PermissionsFlow.Result.Denied -> navigateTo(NodeKey(CredentialsScreen.key))
               PermissionsFlow.Result.Dismissed -> navigateTo(NodeKey(CredentialsScreen.key))
             }
