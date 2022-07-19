@@ -10,6 +10,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
             (path append node.initial) to false
           }
           is ScreenNode -> path to true
+          is FinalNode -> path to true
           null -> error("no initial node for path $path")
         }
       }.takeWhile { (_, isAtomic) -> !isAtomic }.last().first
@@ -33,8 +34,12 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
   }
 
   fun transition(path: Path, event: Event): TransitionResult {
+    val transitionsDebugLog = if (DEBUG_LOG_TRANSITIONS) StringBuilder() else null
+    if (DEBUG_LOG_TRANSITIONS) {
+      transitionsDebugLog?.append("transition [$path] x ${event.name.value} → ")
+    }
     val resolvedTransition = findAndResolveTransitionTarget(root, event, path)
-    return if (resolvedTransition?.targetPath != null && resolvedTransition.finishResult == null) {
+    val result = if (resolvedTransition?.targetPath != null) {
       val resolvedTargetPath = root.fullyResolvePath(resolvedTransition.targetPath)
 
       val exitSet = findExitNodes(path, resolvedTargetPath)
@@ -56,23 +61,14 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
           actions.add(it.bindTo(env, ancestorFlowPath))
         }
       }
+      if (resolvedTransition.queuedEvents.isNotEmpty()) {
+        val ancestorFlowPath = root.findAncestorFlowNodePath(path)
+        @Suppress("MoveLambdaOutsideParentheses")
+        actions.add({ ActionResult(resolvedTransition.queuedEvents, ancestorFlowPath, null) })
+      }
 
       TransitionResult(resolvedTargetPath, actions.takeIf { it.isNotEmpty() })
-    } else if (resolvedTransition?.targetPath == null && resolvedTransition?.finishResult != null) {
-      val ancestorFlowPath = root.findAncestorFlowNodePath(path)
-      @Suppress("MoveLambdaOutsideParentheses")
-      TransitionResult(path, actions = listOf({
-        ActionResult(
-          listOf(Event(Event.Name.DONE, resolvedTransition.finishResult)),
-          parentFlowNodePath = ancestorFlowPath,
-          updatedState = null
-        )
-      }))
-    } else if (resolvedTransition?.targetPath != null && resolvedTransition.finishResult != null) {
-      error("only one of navigateTo() or finish() can be called")
-    } else if (resolvedTransition != null && resolvedTransition.targetPath == null &&
-      resolvedTransition.finishResult == null && resolvedTransition.queuedEvents.isNotEmpty()
-    ) {
+    } else if (resolvedTransition?.queuedEvents?.isNotEmpty() == true) {
       val ancestorFlowPath = root.findAncestorFlowNodePath(path)
       @Suppress("MoveLambdaOutsideParentheses")
       TransitionResult(path, actions = listOf({
@@ -83,8 +79,19 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
         )
       }))
     } else {
-      println("no transition for event $event on node $path, ignoring")
+      println("no transition for event $event on node $path or its ancestors, ignoring")
       TransitionResult(path, actions = null)
+    }
+
+    return result.also {
+      if (DEBUG_LOG_TRANSITIONS) {
+        if (it.actions != null) {
+          transitionsDebugLog?.appendLine("${it.path} <with actions>")
+        } else {
+          transitionsDebugLog?.appendLine("${it.path}")
+        }
+        transitionsDebugLog?.let { log -> println(log.toString()) }
+      }
     }
   }
 
@@ -94,6 +101,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     var transition: ((TransitionEnv<*, *, *>) -> Unit)? = null
     var transitionNode: Node? = null
     var transitionNodePath: Path? = null
+
     for (i in nodes.lastIndex downTo 0) {
       val transitionSpec = nodes[i].eventTransitions[event.name]
       if (transitionSpec != null) {
@@ -112,20 +120,42 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
         transitionNode = root
       }
     }
+
     return (transition ?: root.eventTransitions[event.name])
       ?.let { spec ->
-        val transitionEnv = if (event.name.value.startsWith(Event.Name.DONE.value + "_")) {
-          val result = event.payload ?: error("expected payload in internal DONE event")
-          ResultTransitionEnv<Any, A, R, Any>(event, result)
+        // See NOTE_FINISH_TRANSITIONS
+        val transitionEnv = if (event.name.isDone()) {
+          ResultTransitionEnv<Any, A, R, Any>(event)
         } else {
           TransitionEnv(event)
         }
-
         spec.invoke(transitionEnv)
+        // NOTE_FINISH_TRANSITIONS
+        // On call to finish() we do the following things:
+        // 1. Switch to the final node of the current flow (which is always present, ensured by the FlowNodeBuilder)
+        // 2. Raise an "internal" DONE-event, specific to that flow, which will trigger a special "done"-transition,
+        //    defined on the Flow node (also ensured by the FlowNodeBuilder)
+        val destination = if (transitionEnv.finishResult != null) {
+          TransitionEnv.Destination.RelativeNode(FlowNode.DEFAULT_FINAL_NODE_KEY)
+        } else transitionEnv.destination
+
+        if (event.name.isDone()) {
+          // when resolving destinations for internal "done"-transitions, it needs to be done in the context
+          // of the parent flow of the done-flow
+          transitionNodePath = transitionNodePath?.let { root.findAncestorFlowNodePath(it, ignoreCurrent = true) }
+          transitionNode = transitionNodePath?.let { root.findChild(it) ?: root }
+        }
+
+        val targetPath = destination?.resolve(transitionNodePath, transitionNode)
+
+        val doneEvent = if (transitionEnv.finishResult != null && targetPath != null) {
+          val ancestorFlowNode = root.findAncestorFlowNode(targetPath)
+          Event(ancestorFlowNode.doneEventName, transitionEnv.finishResult)
+        } else null
+
         ResolvedTransition(
-          targetPath = transitionEnv.destination?.resolve(transitionNodePath, transitionNode),
-          finishResult = transitionEnv.finishResult,
-          queuedEvents = transitionEnv.queuedEvents.orEmpty()
+          targetPath = targetPath,
+          queuedEvents = transitionEnv.queuedEvents.orEmpty().let { if (doneEvent != null) it + doneEvent else it }
         )
       }
   }
@@ -156,7 +186,6 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
 
 private data class ResolvedTransition(
   val targetPath: Path?,
-  val finishResult: Any?,
   val queuedEvents: List<Event>
 )
 
@@ -256,6 +285,7 @@ private fun FlowNode<*, *, *>.fullyResolvePath(targetPath: Path): Path {
       fullyResolvePath(targetPath append targetNode.initial)
     }
     is ScreenNode -> targetPath
+    is FinalNode -> targetPath
     null -> error("machine has no node \"$targetPath\"")
   }
 }
@@ -270,6 +300,7 @@ internal fun FlowNode<*, *, *>.findChild(path: Path): Node? {
     when (node) {
       is FlowNode<*, *, *> -> node.findChild(tail)
       is ScreenNode -> null
+      is FinalNode -> null
     }
   } else {
     node
@@ -280,24 +311,45 @@ internal fun FlowNode<*, *, *>.findChild(path: Path): Node? {
  * Finds a first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
  * If node at [path] is itself a FlowNode, returns it.
  */
-private fun FlowNode<*, *, *>.findAncestorFlowNodePath(path: Path): Path {
-  val nodes = findChildrenAlongPath(path)
+private fun FlowNode<*, *, *>.findAncestorFlowNodePath(path: Path, ignoreCurrent: Boolean = false): Path {
+  if (ignoreCurrent && path == Path(NODE_KEY_ROOT)) {
+    error("findAncestorFlowNodePath called on root node")
+  }
+  val path1 = if (ignoreCurrent) {
+      path.dropLast(1) ?: Path(NODE_KEY_ROOT)
+    } else path
+  val nodes = findChildrenAlongPath(path1)
   val list = nodes.dropLastWhile { it !is FlowNode<*, *, *> }
-  return path.dropLast(nodes.size - list.size) ?: Path(NODE_KEY_ROOT)
+  return path1.dropLast(nodes.size - list.size) ?: Path(NODE_KEY_ROOT)
 }
 
 /**
  * Finds a state of first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
  * If node at [path] is itself a FlowNode, returns its state.
  */
-internal fun FlowNode<*, *, *>.findAncestorFlowNodeState(path: Path): Any {
-  val ancestorPath = findAncestorFlowNodePath(path)
+internal fun FlowNode<*, *, *>.findAncestorFlowNodeState(path: Path, ignoreCurrent: Boolean = false): Any {
+  val ancestorPath = findAncestorFlowNodePath(path, ignoreCurrent)
   return if (ancestorPath == Path(NODE_KEY_ROOT)) {
     this.state
   } else {
     val ancestorNode = findChild(ancestorPath) as FlowNode<Any, *, *>?
       ?: error("failed to find ancestor flow node for path: $path")
     ancestorNode.state
+  }
+}
+
+/**
+ * Finds a first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
+ * If node at [path] is itself a FlowNode, returns itself.
+ */
+internal fun FlowNode<*, *, *>.findAncestorFlowNode(path: Path, ignoreCurrent: Boolean = false): FlowNode<*, *, *> {
+  val ancestorPath = findAncestorFlowNodePath(path, ignoreCurrent)
+  return if (ancestorPath == Path(NODE_KEY_ROOT)) {
+    this
+  } else {
+    val ancestorNode = findChild(ancestorPath) as FlowNode<*, *, *>?
+      ?: error("failed to find ancestor flow node for path: $path")
+    ancestorNode
   }
 }
 
@@ -315,9 +367,13 @@ private fun FlowNode<*, *, *>.findChildrenAlongPath(path: Path): List<Node> {
     n = when (node) {
       is FlowNode<*, *, *> -> node
       is ScreenNode -> null
+      is FinalNode -> null
     }
   }
   return nodes
 }
 
 private val NODE_KEY_ROOT = NodeKey("<root>")
+
+// TODO @Debug @Hooks remove when hooks are added, implement debug log as a hook
+private const val DEBUG_LOG_TRANSITIONS = false

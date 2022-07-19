@@ -3,6 +3,7 @@ package ru.dimsuz.way
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -505,17 +506,16 @@ class NavigationServiceTest : ShouldSpec({
   context("flow result processing") {
     should("transition to node specified in onResult") {
       val commands = mutableListOf<BackStack>()
+      val flowB = FlowNodeBuilder<Unit, Unit, String>()
+          .setInitial(NodeKey("b1"))
+          .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish("finishResultT") }.build() }
+          .build(Unit)
+          .unwrap()
       val node = FlowNodeBuilder<Unit, Unit, Unit>()
         .setInitial(NodeKey("flowB"))
         .addFlowNode<String>(NodeKey("flowB")) { builder ->
           builder
-            .of(
-              FlowNodeBuilder<Unit, Unit, String>()
-                .setInitial(NodeKey("b1"))
-                .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish("finishResultT") }.build() }
-                .build(Unit)
-                .unwrap()
-            )
+            .of(flowB)
             .onResult {
               if (result == "finishResultT") navigateTo(NodeKey("a1")) else error("unexpected result")
             }
@@ -533,7 +533,7 @@ class NavigationServiceTest : ShouldSpec({
       commands.last().shouldContainExactly(path("a1"))
     }
 
-    should("properly finishes parent flow in response to child onResult") {
+    should("properly finish parent flow in response to child onResult") {
       val commands = mutableListOf<BackStack>()
       val flowC = FlowNodeBuilder<Unit, Unit, FlowResultY>()
           .setInitial(NodeKey("c1"))
@@ -578,6 +578,68 @@ class NavigationServiceTest : ShouldSpec({
       service.sendEvent(Event(Name("T"))) // flowB.b1 → flowC
       service.sendEvent(Event(Name("T"))) // flowC → finish flowC
 
+      commands.last().shouldContainExactly(path("a1"))
+    }
+
+    should("not pass final states to the command builder") {
+      val commands = mutableListOf<BackStack>()
+      val flowB = FlowNodeBuilder<Unit, Unit, String>()
+        .setInitial(NodeKey("b1"))
+        .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish("finishResultT") }.build() }
+        .build(Unit)
+        .unwrap()
+      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+        .setInitial(NodeKey("flowB"))
+        .addFlowNode<String>(NodeKey("flowB")) { builder ->
+          builder
+            .of(flowB)
+            .onResult {
+              if (result == "finishResultT") navigateTo(NodeKey("a1")) else error("unexpected result")
+            }
+            .build()
+            .unwrap()
+        }
+        .addScreenNode(NodeKey("a1")) { builder -> builder.build() }
+        .build(Unit)
+        .unwrap()
+
+      val service = node.toCollectingService(commands)
+
+      service.sendEvent(Event(Name("T")))
+
+      commands.forEach { backstack ->
+        backstack.forEach { path -> path.asIterable() shouldNotContain FlowNode.DEFAULT_FINAL_NODE_KEY }
+      }
+    }
+
+    should("process events sent from finish block in absence of navigate actions") {
+      val commands = mutableListOf<BackStack>()
+      val flowB = FlowNodeBuilder<Unit, Unit, String>()
+        .setInitial(NodeKey("b1"))
+        .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish("finishResultT") }.build() }
+        .build(Unit)
+        .unwrap()
+
+      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+        .setInitial(NodeKey("flowB"))
+        .addFlowNode<String>(NodeKey("flowB")) { builder ->
+          builder
+            .of(flowB)
+            .onResult {
+              if (result == "finishResultT") sendEvent(Event(Name("TT"))) else error("unexpected result")
+            }
+            .build()
+            .unwrap()
+        }
+        .addScreenNode(NodeKey("a1")) { builder -> builder.build() }
+        .on(Name("TT")) { navigateTo(NodeKey("a1")) }
+        .build(Unit)
+        .unwrap()
+
+      val service = node.toCollectingService(commands)
+
+      // will finish flowB which in turn will emit "TT" event to switch to "a1"
+      service.sendEvent(Event(Name("T")))
       commands.last().shouldContainExactly(path("a1"))
     }
   }

@@ -17,6 +17,7 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     draft = FlowNodeDraft(
       initial = node.initial,
       eventTransitions = node.eventTransitions.toMutableMap(),
+      doneEventName = node.doneEventName,
       screenBuildActions = node.children
         .filterValues { it is ScreenNode }
         .mapValuesTo(mutableMapOf()) { (_, node) -> { node as ScreenNode } },
@@ -68,21 +69,40 @@ class FlowNodeBuilder<S : Any, A : Any, R : Any> {
     return this
   }
 
+  // TODO: make this public api?
+  //   in this case reaching any final node should emit "FlowNode.doneEventName" and execute
+  //   the corresponding transition.
+  //   This will probably also require having "flowBuilder.onDone" in addition to "flowBuilder.onFinish", where
+  //   "onDone" won't have any "result" (which is only available through "finish")
+  internal fun addFinalNode(
+    nodeKey: NodeKey,
+    buildAction: (builder: FinalNodeBuilder<S, A, R>) -> FinalNode
+  ): FlowNodeBuilder<S, A, R> {
+    draft.finalNodeBuildActions[nodeKey] = buildAction
+    return this
+  }
+
   fun build(initialState: S): Result<FlowNode<S, A, R>, Error> {
     return binding {
       val initial = draft.initial.toResultOr { Error.MissingInitialNode }
       val children = mutableMapOf<NodeKey, Node>()
+
       draft.screenBuildActions.mapValuesTo(children) { (_, buildAction) ->
         val builder = ScreenNodeBuilder<S, A, R>()
         buildAction(builder)
       }
       draft.flowBuildActions.mapValuesTo(children) { (_, buildAction) ->
-        val builder = SubFlowBuilder<S, A, R, Any>(draft.eventTransitions)
+        val builder = SubFlowBuilder<S, A, R, Any>()
+        buildAction(builder)
+      }
+      draft.finalNodeBuildActions.mapValuesTo(children) { (_, buildAction) ->
+        val builder = FinalNodeBuilder<S, A, R>()
         buildAction(builder)
       }
       FlowNode(
         initial = initial.bind(),
         children = children,
+        doneEventName = draft.doneEventName,
         state = initialState,
         eventTransitions = draft.eventTransitions,
         onEntry = draft.onEntry,

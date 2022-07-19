@@ -25,13 +25,28 @@ class NavigationService<T : Any>(
     if (backStack != newBackStack) {
       val oldBackStack = backStack
       backStack = newBackStack
-      onCommand(commandBuilder(
-        oldBackStack,
-        newBackStack,
-        machine.root.findAncestorFlowNodeState(transitionResult.path)
-      ))
+      // final node states are not supposed to be rendered, they are transitory, so do not pass them to command handler
+      // but it is still required to save full backstack internally so that the next transition will receive a
+      // correct previous state (even when it's a 'done' final state)
+      val filteredOldBackStack = oldBackStack.removeInternalNodeEntries()
+      val filteredNewBackStack = newBackStack.removeInternalNodeEntries()
+      if (filteredOldBackStack != filteredNewBackStack) {
+        onCommand(
+          commandBuilder(
+            filteredOldBackStack,
+            filteredNewBackStack,
+            machine.root.findAncestorFlowNodeState(transitionResult.path)
+          )
+        )
+      }
     }
     events.forEach { sendEvent(it) }
+  }
+
+  private fun BackStack.removeInternalNodeEntries(): BackStack {
+    return if (this.lastOrNull()?.lastSegment == FlowNode.DEFAULT_FINAL_NODE_KEY) {
+      this.dropLast(1)
+    } else this
   }
 
   fun start() {
