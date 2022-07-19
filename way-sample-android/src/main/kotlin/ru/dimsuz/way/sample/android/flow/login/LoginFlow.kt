@@ -18,6 +18,7 @@ import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpScreen
 import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpViewModel
 
 object LoginFlow {
+  val key = NodeKey("login")
 
   data class State(
     override val screens: Map<NodeKey, Screen> = emptyMap(),

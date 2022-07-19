@@ -6,6 +6,7 @@ import ru.dimsuz.way.Event
 import ru.dimsuz.way.FlowNode
 import ru.dimsuz.way.FlowNodeBuilder
 import ru.dimsuz.way.NodeKey
+import ru.dimsuz.way.sample.android.flow.event.AppStateEvent
 import ru.dimsuz.way.sample.android.flow.foundation.FlowResult
 import ru.dimsuz.way.sample.android.flow.foundation.compose.FlowState
 import ru.dimsuz.way.sample.android.flow.login.LoginFlow
@@ -21,8 +22,8 @@ object AppFlow {
 
   fun buildNode(eventSink: FlowEventSink): FlowNode<State, Unit, FlowResult> {
     return FlowNodeBuilder<State, Unit, FlowResult>()
-      .setInitial(NodeKey("login"))
-      .addFlowNode<FlowResult>(NodeKey("login")) { builder ->
+      .setInitial(LoginFlow.key)
+      .addFlowNode<FlowResult>(LoginFlow.key) { builder ->
         builder.of(LoginFlow.buildNode(eventSink))
           .onResult {
             when (result) {
@@ -36,7 +37,7 @@ object AppFlow {
           .build()
           .unwrap()
       }
-      .addFlowNode<FlowResult>(NodeKey("main")) { builder ->
+      .addFlowNode<FlowResult>(MainFlow.key) { builder ->
         builder.of(MainFlow.buildNode(eventSink))
           .onResult {
             Log.d("AppFlow", "finishing app flow")
@@ -47,6 +48,12 @@ object AppFlow {
       }
       .on(Event.Name.BACK) {
         finish(FlowResult.Dismissed)
+      }
+      .on(AppStateEvent.PermissionsDeniedPermanently.name) {
+        navigateTo(LoginFlow.key)
+      }
+      .on(AppStateEvent.AuthTokensExpired.name) {
+        navigateTo(LoginFlow.key)
       }
       .build(State())
       .unwrap()
