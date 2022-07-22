@@ -290,6 +290,14 @@ private fun FlowNode<*, *, *>.fullyResolvePath(targetPath: Path): Path {
   }
 }
 
+internal fun FlowNode<*, *, *>.findNode(path: Path): Node {
+  return if (path == Path(NODE_KEY_ROOT)) {
+    this
+  } else {
+    this.findChild(path) ?: error("failed to find node with path=$path")
+  }
+}
+
 internal fun FlowNode<*, *, *>.findChild(path: Path): Node? {
   val first = path.firstSegment
 

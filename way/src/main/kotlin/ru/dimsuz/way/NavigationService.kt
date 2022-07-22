@@ -18,7 +18,7 @@ class NavigationService<T : Any>(
     val events = mutableListOf<Event>()
     transitionResult.actions?.forEach { action ->
       val result = action()
-      val node = machine.root.findChild(result.parentFlowNodePath)
+      val node = machine.root.findNode(result.parentFlowNodePath)
       result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
       events.addAll(result.events)
     }
@@ -55,7 +55,7 @@ class NavigationService<T : Any>(
     val events = mutableListOf<Event>()
     transitionResult.actions?.forEach { action ->
       val result = action()
-      val node = machine.root.findChild(result.parentFlowNodePath)
+      val node = machine.root.findNode(result.parentFlowNodePath)
       result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
       events.addAll(result.events)
     }
