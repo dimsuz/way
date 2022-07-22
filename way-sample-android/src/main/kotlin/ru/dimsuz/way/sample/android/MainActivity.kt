@@ -4,12 +4,16 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.with
 import androidx.compose.material.MaterialTheme
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +35,7 @@ import ru.dimsuz.way.sample.android.ui.foundation.Screen
 class MainActivity : ComponentActivity() {
   private val scope = CoroutineScope(Dispatchers.Main)
 
+  @OptIn(ExperimentalAnimationApi::class)
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
@@ -53,9 +58,14 @@ class MainActivity : ComponentActivity() {
 
     setContent {
       MaterialTheme {
-        commandBuilder.currentScreen?.Content()
-        LaunchedEffect(commandBuilder.currentScreen) {
-          commandBuilder.currentScreen?.onAttach()
+        AnimatedContent(targetState = commandBuilder.currentScreen, transitionSpec = {
+          fadeIn() + slideIntoContainer(towards = AnimatedContentScope.SlideDirection.Start) with fadeOut() + slideOutOfContainer(
+            AnimatedContentScope.SlideDirection.Start)
+        }) { currentScreen ->
+          currentScreen?.Content()
+          LaunchedEffect(currentScreen) {
+            currentScreen?.onAttach()
+          }
         }
       }
     }
