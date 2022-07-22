@@ -3,8 +3,11 @@ package ru.dimsuz.way
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldContainInOrder
 import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.ints.shouldBeGreaterThan
+import io.kotest.matchers.maps.shouldContainAll
+import io.kotest.matchers.maps.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.PropertyTesting
@@ -646,28 +649,45 @@ class NavigationServiceTest : ShouldSpec({
 
   context("flow state management") {
     should("update state in node actions") {
-      val commands = mutableListOf<BackStack>()
-      val state: Map<String, Int> = emptyMap()
-      FlowNodeBuilder<Map<String, Int>, Unit, Unit>()
+      var updatedState: Any? = null
+      val service = FlowNodeBuilder<List<String>, Unit, Unit>()
         .setInitial(NodeKey("a"))
-        .onEntry { updateState { it.plus("flowNode_onEntry" to 1) } }
-        .onExit { updateState { it.plus("flowNode_onExit" to 1) } }
+        .onEntry { updateState { it.plus("flowNode_onEntry") } }
+        .onExit { updateState { it.plus("flowNode_onExit") } }
         .addScreenNode(NodeKey("a")) { builder ->
           builder
-            .onEntry { updateState { it.plus("screenNode_onEntry" to 1) } }
-            .onExit { updateState { it.plus("screenNode_onExit" to 1) } }
+            .onEntry { updateState { it.plus("screenNode_a_onEntry") } }
+            .onExit { updateState { it.plus("screenNode_a_onExit") } }
             .on(Name("EN")) { navigateTo(NodeKey("b")) }
             .build()
         }
         .addScreenNode(NodeKey("b")) { builder ->
-          builder.build()
+          builder
+            .onEntry { updateState { it.plus("screenNode_b_onEntry") } }
+            .onExit { updateState { it.plus("screenNode_b_onExit") } }
+            .on(Name("EN")) { navigateTo(NodeKey("a")) }
+            .build()
         }
-        .build(state)
+        .build(emptyList())
         .unwrap()
-        .toCollectingService(commands)
+        .toService(
+          commandBuilder = { _, _, s -> updatedState = s },
+          onCommand = { }
+        ).apply {
+          start()
+        }
 
-      TODO()
-//      commands.last().shouldContainExactly(path("a"), path("b"))
+      service.sendEvent(Event(Name("EN"))) // a -> b
+      service.sendEvent(Event(Name("EN"))) // b -> a
+
+      (updatedState as List<String>).shouldContainInOrder(
+        "flowNode_onEntry",
+        "screenNode_a_onEntry",
+        "screenNode_a_onExit",
+        "screenNode_b_onEntry",
+        "screenNode_b_onExit",
+        "screenNode_a_onEntry",
+      )
     }
 
     should("update independent state in sub flows") {
