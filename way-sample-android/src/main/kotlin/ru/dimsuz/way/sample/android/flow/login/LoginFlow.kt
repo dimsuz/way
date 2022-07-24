@@ -7,6 +7,7 @@ import ru.dimsuz.way.FlowNode
 import ru.dimsuz.way.FlowNodeBuilder
 import ru.dimsuz.way.NodeKey
 import ru.dimsuz.way.sample.android.flow.foundation.FlowResult
+import ru.dimsuz.way.sample.android.flow.foundation.addSampleScreenNode
 import ru.dimsuz.way.sample.android.flow.foundation.compose.FlowState
 import ru.dimsuz.way.sample.android.flow.permissions.PermissionsFlow
 import ru.dimsuz.way.sample.android.ui.foundation.FlowEventSink
@@ -27,32 +28,9 @@ object LoginFlow {
 
   fun buildNode(eventSink: FlowEventSink): FlowNode<State, Unit, FlowResult> {
     return FlowNodeBuilder<State, Unit, FlowResult>()
-      .setInitial(NodeKey(CredentialsScreen.key))
-      .addScreenNode(NodeKey(CredentialsScreen.key)) { builder ->
+      .setInitial(CredentialsScreen.nodeSpec.key)
+      .addSampleScreenNode(CredentialsScreen.nodeSpec, eventSink) { builder ->
         builder
-          .onEntry {
-            Log.d("LoginFlow", "onEntry credentials, state is ${state.logs}")
-            val viewModel = CredentialsViewModel(eventSink)
-            updateState {
-              it.copy(
-                screens = state.screens.plus(
-                  NodeKey(CredentialsScreen.key) to CredentialsScreen(
-                    viewModel
-                  )
-                ),
-                logs = it.logs + "credentials onEntry"
-              )
-            }
-          }
-          .onExit {
-            Log.d("LoginFlow", "onExit credentials, state is ${state.logs}")
-            updateState {
-              it.copy(
-                screens = state.screens.minus(NodeKey(CredentialsScreen.key)),
-                logs = it.logs + "credentials onExit"
-              )
-            }
-          }
           .on(FlowEvent.Continue.name) {
             navigateTo(NodeKey(OtpScreen.key))
           }
@@ -90,7 +68,7 @@ object LoginFlow {
             Log.d("LoginFlow", "TODO handle otp error")
           }
           .on(Event.Name.BACK) {
-            navigateTo(NodeKey(CredentialsScreen.key))
+            navigateTo(CredentialsScreen.nodeSpec.key)
           }
           .build()
       }
@@ -99,8 +77,8 @@ object LoginFlow {
           .onResult {
             when (result) {
               PermissionsFlow.Result.Granted -> finish(FlowResult.Success)
-              PermissionsFlow.Result.Denied -> navigateTo(NodeKey(CredentialsScreen.key))
-              PermissionsFlow.Result.Dismissed -> navigateTo(NodeKey(CredentialsScreen.key))
+              PermissionsFlow.Result.Denied -> navigateTo(CredentialsScreen.nodeSpec.key)
+              PermissionsFlow.Result.Dismissed -> navigateTo(CredentialsScreen.nodeSpec.key)
             }
           }
           .build()
