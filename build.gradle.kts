@@ -1,4 +1,5 @@
 plugins {
+  // NOTE arrow-optics ksp plugin in way-sample-android depends on kotlin version
   kotlin("jvm") version "1.6.10" apply false
   id("com.android.application") version "7.2.1" apply false
 }

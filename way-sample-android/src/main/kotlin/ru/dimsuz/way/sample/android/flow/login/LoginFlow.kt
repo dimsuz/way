@@ -1,6 +1,7 @@
 package ru.dimsuz.way.sample.android.flow.login
 
 import android.util.Log
+import arrow.optics.optics
 import com.github.michaelbull.result.unwrap
 import ru.dimsuz.way.Event
 import ru.dimsuz.way.FlowNode
@@ -14,22 +15,24 @@ import ru.dimsuz.way.sample.android.ui.foundation.FlowEventSink
 import ru.dimsuz.way.sample.android.ui.foundation.Screen
 import ru.dimsuz.way.sample.android.ui.login.FlowEvent
 import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsScreen
-import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsViewModel
 import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpScreen
 import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpViewModel
 
 object LoginFlow {
   val key = NodeKey("login")
 
+  @optics
   data class State(
     override val screens: Map<NodeKey, Screen> = emptyMap(),
     val logs: List<String> = emptyList(),
-  ) : FlowState
+  ) : FlowState {
+    companion object
+  }
 
   fun buildNode(eventSink: FlowEventSink): FlowNode<State, Unit, FlowResult> {
     return FlowNodeBuilder<State, Unit, FlowResult>()
       .setInitial(CredentialsScreen.nodeSpec.key)
-      .addSampleScreenNode(CredentialsScreen.nodeSpec, eventSink) { builder ->
+      .addSampleScreenNode(CredentialsScreen.nodeSpec, eventSink, State.screens) { builder ->
         builder
           .on(FlowEvent.Continue.name) {
             navigateTo(NodeKey(OtpScreen.key))

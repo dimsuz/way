@@ -1,6 +1,7 @@
 plugins {
   id("com.android.application")
   kotlin("android")
+  id("com.google.devtools.ksp") version "1.6.10-1.0.4"
 }
 
 android {
@@ -20,7 +21,18 @@ android {
   composeOptions {
     kotlinCompilerExtensionVersion = "1.1.1"
   }
+
+  applicationVariants.all {
+    kotlin {
+      sourceSets {
+        getByName(name) {
+           kotlin.srcDir("build/generated/ksp/$name/kotlin")
+        }
+      }
+    }
+  }
 }
+
 
 dependencies {
   implementation("androidx.core:core-ktx:1.8.0")
@@ -29,6 +41,9 @@ dependencies {
   implementation("androidx.compose.material:material:1.1.1")
   implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.4.1")
   implementation("androidx.activity:activity-compose:1.4.0")
+
+  implementation("io.arrow-kt:arrow-optics:1.1.2")
+  ksp("io.arrow-kt:arrow-optics-ksp-plugin:1.1.2")
 
   implementation(project(":way"))
 }
