@@ -14,23 +14,15 @@ import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsScree
 
 fun <S : Any, A : Any, R : Any> FlowNodeBuilder<S, A, R>.addSampleScreenNode(
   spec: ScreenNodeSpec,
-  eventSink: FlowEventSink,
-  screensLens: Lens<S, Map<NodeKey, Screen>>,
+  screenNodeSpecsLens: Lens<S, Map<NodeKey, ScreenNodeSpec>>,
   buildAction: (ScreenNodeBuilder<S, A, R>) -> ScreenNode
 ): FlowNodeBuilder<S, A, R> {
   return this.addScreenNode(spec.key) { builder ->
     builder
       .onEntry {
         updateState {
-          screensLens.modify(it) { screens ->
-            screens.plus(spec.key to spec.factory(eventSink))
-          }
-        }
-      }
-      .onExit {
-        updateState {
-          screensLens.modify(it) { screens ->
-            screens.minus(spec.key)
+          screenNodeSpecsLens.modify(it) { specs ->
+            specs.plus(spec.key to spec)
           }
         }
       }

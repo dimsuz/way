@@ -30,6 +30,7 @@ import ru.dimsuz.way.NavigationService
 import ru.dimsuz.way.Path
 import ru.dimsuz.way.sample.android.flow.app.AppFlow
 import ru.dimsuz.way.sample.android.flow.foundation.compose.FlowState
+import ru.dimsuz.way.sample.android.ui.foundation.FlowEventSink
 import ru.dimsuz.way.sample.android.ui.foundation.Screen
 
 class MainActivity : ComponentActivity() {
@@ -39,18 +40,19 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    val eventSink = MutableSharedFlow<Event>()
-    val commandBuilder = ComposableCommandBuilder()
+    val eventFlow = MutableSharedFlow<Event>()
+    val eventSink: (Event) -> Unit = { event: Event -> scope.launch { eventFlow.emit(event) } }
+    val commandBuilder = ComposableCommandBuilder(eventSink)
 
     val navigationService = NavigationService(
-      machine = NavigationMachine(AppFlow.buildNode(eventSink = {  scope.launch { eventSink.emit(it) } })),
+      machine = NavigationMachine(AppFlow.buildNode()),
       commandBuilder = commandBuilder,
       onCommand = {
         it.invoke()
       }
     )
 
-    eventSink
+    eventFlow
       .onEach { navigationService.sendEvent(it) }
       .launchIn(scope)
 
@@ -77,7 +79,9 @@ class MainActivity : ComponentActivity() {
   }
 }
 
-private class ComposableCommandBuilder : CommandBuilder<() -> Unit> {
+private class ComposableCommandBuilder(
+  private val flowEventSink: FlowEventSink,
+) : CommandBuilder<() -> Unit> {
   var currentScreen: Screen? by mutableStateOf(null)
   var previousScreen: Screen? by mutableStateOf(null)
   private val activeScreens: MutableMap<Path, Screen> = mutableMapOf()
@@ -96,7 +100,7 @@ private class ComposableCommandBuilder : CommandBuilder<() -> Unit> {
         append("  new state: $newState")
       })
       if (newBackStack.isNotEmpty()) {
-        currentScreen = getOrCreateActiveScreen(newBackStack.last(), newState)
+        currentScreen = getOrSaveActiveScreen(newBackStack.last(), newState)
           ?: error("don't know how to make screen for a backstack: $newBackStack")
         if (previousScreen != currentScreen) {
           previousScreen?.onDetach()
@@ -108,9 +112,9 @@ private class ComposableCommandBuilder : CommandBuilder<() -> Unit> {
     }
   }
 
-  private fun getOrCreateActiveScreen(path: Path, flowState: FlowState): Screen? {
+  private fun getOrSaveActiveScreen(path: Path, flowState: FlowState): Screen? {
     return activeScreens[path]
-      ?: flowState.screens[path.lastSegment]?.also { activeScreens[path] = it }
+      ?: flowState.screenNodeSpecs[path.lastSegment]?.factory?.invoke(flowEventSink)?.also { activeScreens[path] = it }
   }
 
   private fun cleanUpActiveScreens(backStack: BackStack) {

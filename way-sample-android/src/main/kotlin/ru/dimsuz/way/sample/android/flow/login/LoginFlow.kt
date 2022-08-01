@@ -13,6 +13,7 @@ import ru.dimsuz.way.sample.android.flow.foundation.compose.FlowState
 import ru.dimsuz.way.sample.android.flow.permissions.PermissionsFlow
 import ru.dimsuz.way.sample.android.ui.foundation.FlowEventSink
 import ru.dimsuz.way.sample.android.ui.foundation.Screen
+import ru.dimsuz.way.sample.android.ui.foundation.ScreenNodeSpec
 import ru.dimsuz.way.sample.android.ui.login.FlowEvent
 import ru.dimsuz.way.sample.android.ui.login.screen.credentials.CredentialsScreen
 import ru.dimsuz.way.sample.android.ui.login.screen.otp.OtpScreen
@@ -23,52 +24,32 @@ object LoginFlow {
 
   @optics
   data class State(
-    override val screens: Map<NodeKey, Screen> = emptyMap(),
+    override val screenNodeSpecs: Map<NodeKey, ScreenNodeSpec> = emptyMap(),
     val logs: List<String> = emptyList(),
   ) : FlowState {
     companion object
   }
 
-  fun buildNode(eventSink: FlowEventSink): FlowNode<State, Unit, FlowResult> {
+  fun buildNode(): FlowNode<State, Unit, FlowResult> {
     return FlowNodeBuilder<State, Unit, FlowResult>()
       .setInitial(CredentialsScreen.nodeSpec.key)
-      .addSampleScreenNode(CredentialsScreen.nodeSpec, eventSink, State.screens) { builder ->
+      .addSampleScreenNode(CredentialsScreen.nodeSpec, State.screenNodeSpecs) { builder ->
         builder
           .on(FlowEvent.Continue.name) {
-            navigateTo(NodeKey(OtpScreen.key))
+            navigateTo(OtpScreen.nodeSpec.key)
           }
           .build()
       }
-      .addScreenNode(NodeKey(OtpScreen.key)) { builder ->
+      .addSampleScreenNode(OtpScreen.nodeSpec, State.screenNodeSpecs) { builder ->
         builder
-          .onEntry {
-            Log.d("LoginFlow", "onEntry otp, state is ${state.logs}")
-            val viewModel = OtpViewModel(eventSink)
-            updateState {
-              it.copy(
-                screens = state.screens.plus(
-                  NodeKey(OtpScreen.key) to OtpScreen(
-                    viewModel
-                  )
-                ),
-                logs = it.logs + "otp onEntry"
-              )
-            }
-          }
-          .onExit {
-            Log.d("LoginFlow", "onExit otp, state is ${state.logs}")
-            updateState {
-              it.copy(
-                screens = state.screens.minus(NodeKey(OtpScreen.key)),
-                logs = it.logs + "otp onExit"
-              )
-            }
+          .on(FlowEvent.Continue.name) {
+            navigateTo(OtpScreen.nodeSpec.key)
           }
           .on(FlowEvent.OtpSuccess.name) {
             navigateTo(PermissionsFlow.key)
           }
           .on(FlowEvent.OtpError.name) {
-            Log.d("LoginFlow", "TODO handle otp error")
+            navigateTo(CredentialsScreen.nodeSpec.key)
           }
           .on(Event.Name.BACK) {
             navigateTo(CredentialsScreen.nodeSpec.key)
@@ -76,7 +57,7 @@ object LoginFlow {
           .build()
       }
       .addFlowNode<PermissionsFlow.Result>(PermissionsFlow.key) { builder ->
-        builder.of(PermissionsFlow.buildNode(eventSink))
+        builder.of(PermissionsFlow.buildNode())
           .onFinish {
             when (result) {
               PermissionsFlow.Result.Granted -> finish(FlowResult.Success)
