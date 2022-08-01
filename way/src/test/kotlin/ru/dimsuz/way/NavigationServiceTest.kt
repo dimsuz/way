@@ -507,7 +507,7 @@ class NavigationServiceTest : ShouldSpec({
   }
 
   context("flow result processing") {
-    should("transition to node specified in onResult") {
+    should("transition to node specified in onFinish") {
       val commands = mutableListOf<BackStack>()
       val flowB = FlowNodeBuilder<Unit, Unit, String>()
           .setInitial(NodeKey("b1"))
@@ -519,7 +519,7 @@ class NavigationServiceTest : ShouldSpec({
         .addFlowNode<String>(NodeKey("flowB")) { builder ->
           builder
             .of(flowB)
-            .onResult {
+            .onFinish {
               if (result == "finishResultT") navigateTo(NodeKey("a1")) else error("unexpected result")
             }
             .build()
@@ -536,7 +536,7 @@ class NavigationServiceTest : ShouldSpec({
       commands.last().shouldContainExactly(path("a1"))
     }
 
-    should("properly finish parent flow in response to child onResult") {
+    should("properly finish parent flow in response to child onFinish") {
       val commands = mutableListOf<BackStack>()
       val flowC = FlowNodeBuilder<Unit, Unit, FlowResultY>()
           .setInitial(NodeKey("c1"))
@@ -549,7 +549,7 @@ class NavigationServiceTest : ShouldSpec({
         .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { navigateTo(NodeKey("flowC")) }.build() }
         .addFlowNode<FlowResultY>(NodeKey("flowC")) { builder ->
           builder.of(flowC)
-            .onResult {
+            .onFinish {
               when (result) {
                 FlowResultY.Y1 -> finish(FlowResultX.X1)
                 FlowResultY.Y2 -> finish(FlowResultX.X3)
@@ -566,7 +566,7 @@ class NavigationServiceTest : ShouldSpec({
         .addFlowNode<FlowResultX>(NodeKey("flowB")) { builder ->
           builder
             .of(flowB)
-            .onResult {
+            .onFinish {
               if (result == FlowResultX.X3) navigateTo(NodeKey("a1"))
             }
             .build()
@@ -596,7 +596,7 @@ class NavigationServiceTest : ShouldSpec({
         .addFlowNode<String>(NodeKey("flowB")) { builder ->
           builder
             .of(flowB)
-            .onResult {
+            .onFinish {
               if (result == "finishResultT") navigateTo(NodeKey("a1")) else error("unexpected result")
             }
             .build()
@@ -628,7 +628,7 @@ class NavigationServiceTest : ShouldSpec({
         .addFlowNode<String>(NodeKey("flowB")) { builder ->
           builder
             .of(flowB)
-            .onResult {
+            .onFinish {
               if (result == "finishResultT") sendEvent(Event(Name("TT"))) else error("unexpected result")
             }
             .build()

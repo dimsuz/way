@@ -17,7 +17,7 @@ class SubFlowBuilder<S : Any, A : Any, R : Any, SR : Any> internal constructor()
     return this
   }
 
-  fun onResult(transition: ResultTransitionEnv<S, A, R, SR>.() -> Unit): SubFlowBuilder<S, A, R, SR> {
+  fun onFinish(transition: ResultTransitionEnv<S, A, R, SR>.() -> Unit): SubFlowBuilder<S, A, R, SR> {
     onResultTransition = transition
     return this
   }

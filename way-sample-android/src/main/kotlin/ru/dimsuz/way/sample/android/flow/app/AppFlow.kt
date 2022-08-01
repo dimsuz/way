@@ -25,7 +25,7 @@ object AppFlow {
       .setInitial(LoginFlow.key)
       .addFlowNode<FlowResult>(LoginFlow.key) { builder ->
         builder.of(LoginFlow.buildNode(eventSink))
-          .onResult {
+          .onFinish {
             when (result) {
               FlowResult.Success -> navigateTo(MainFlow.key)
               FlowResult.Dismissed -> {
@@ -39,7 +39,7 @@ object AppFlow {
       }
       .addFlowNode<FlowResult>(MainFlow.key) { builder ->
         builder.of(MainFlow.buildNode(eventSink))
-          .onResult {
+          .onFinish {
             Log.d("AppFlow", "finishing app flow")
             // TODO stack overflow if uncomment this: finish(result)
           }

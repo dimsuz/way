@@ -86,7 +86,7 @@ object ProfileFlow {
       }
       .addFlowNode<PermissionsFlow.Result>(PermissionsFlow.key) { builder ->
         builder.of(PermissionsFlow.buildNode(eventSink))
-          .onResult {
+          .onFinish {
             when (result) {
               PermissionsFlow.Result.Granted -> navigateTo(NodeKey(CapturePhotoScreen.key))
               PermissionsFlow.Result.Denied -> sendEvent(AppStateEvent.PermissionsDeniedPermanently)

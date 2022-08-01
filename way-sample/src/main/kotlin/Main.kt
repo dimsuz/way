@@ -62,7 +62,7 @@ fun main() {
             .build(PermissionsFlowState())
             .unwrap()
         )
-        .onResult {
+        .onFinish {
           when (result) {
             PermissionFlowResult.Success -> finish(LoginFlowResult.Success)
             PermissionFlowResult.Dismissed -> finish(LoginFlowResult.Dismissed)
