@@ -462,6 +462,52 @@ class NavigationServiceTest : ShouldSpec({
         }
       }
     }
+
+    should("send events emitted in entry/exit actions on root node") {
+      val commands = mutableListOf<BackStack>()
+      val node = FlowNodeBuilder<Unit, Unit>()
+        .setInitial(NodeKey("a1"))
+        .onEntry {
+          sendEvent(Event(Name("T")))
+        }
+        .on(Name("T")) { navigateTo(NodeKey("a2")) }
+        .addScreenNode(NodeKey("a1")) { builder -> builder.build() }
+        .addScreenNode(NodeKey("a2")) { builder -> builder.build() }
+        .build(Unit)
+        .unwrap()
+
+      node.toCollectingService(commands)
+
+      commands.last().shouldContainExactly(path("a1"), path("a2"))
+    }
+
+    should("send events emitted in entry/exit actions on child flow node") {
+      val commands = mutableListOf<BackStack>()
+      val flowB = FlowNodeBuilder<Unit, String>()
+        .setInitial(NodeKey("b1"))
+        .onEntry {
+          sendEvent(Event(Name("T")))
+        }
+        .addScreenNode(NodeKey("b1")) { sb -> sb.build() }
+        .addScreenNode(NodeKey("b2")) { sb -> sb.build() }
+        .on(Name("T")) { navigateTo(NodeKey("b2")) }
+        .build(Unit)
+        .unwrap()
+      val node = FlowNodeBuilder<Unit, Unit>()
+        .setInitial(NodeKey("flowB"))
+        .addFlowNode<String>(NodeKey("flowB")) { builder ->
+          builder
+            .of(flowB)
+            .build()
+            .unwrap()
+        }
+        .build(Unit)
+        .unwrap()
+
+      node.toCollectingService(commands)
+
+      commands.last().shouldContainExactly(path("flowB.b1"), path("flowB.b2"))
+    }
   }
 
   context("node actions") {
