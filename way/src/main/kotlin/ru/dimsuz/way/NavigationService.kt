@@ -1,7 +1,7 @@
 package ru.dimsuz.way
 
 class NavigationService<T : Any>(
-  private val machine: NavigationMachine<*, *, *>,
+  private val machine: NavigationMachine<*, *>,
   private val commandBuilder: CommandBuilder<T>,
   private var onCommand: (command: T) -> Unit
 ) {
@@ -19,7 +19,7 @@ class NavigationService<T : Any>(
     transitionResult.actions?.forEach { action ->
       val result = action()
       val node = machine.root.findNode(result.parentFlowNodePath)
-      result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
+      result.updatedState?.let { (node as FlowNode<Any, *>).setState(it) }
       events.addAll(result.events)
     }
     if (backStack != newBackStack) {
@@ -56,7 +56,7 @@ class NavigationService<T : Any>(
     transitionResult.actions?.forEach { action ->
       val result = action()
       val node = machine.root.findNode(result.parentFlowNodePath)
-      result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
+      result.updatedState?.let { (node as FlowNode<Any, *>).setState(it) }
       events.addAll(result.events)
     }
     onCommand(commandBuilder(

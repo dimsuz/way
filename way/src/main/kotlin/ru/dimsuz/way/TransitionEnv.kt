@@ -1,6 +1,6 @@
 package ru.dimsuz.way
 
-open class TransitionEnv<S : Any, A : Any, R : Any>(
+open class TransitionEnv<S : Any, R : Any> internal constructor(
   val event: Event,
 ) {
   internal sealed class Destination {

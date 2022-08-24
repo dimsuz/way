@@ -1,7 +1,6 @@
 package ru.dimsuz.way
 
-open class ActionEnv<S : Any, A : Any> internal constructor(
-  val path: Path,
+open class ActionEnv<S : Any> internal constructor(
   val event: Event,
   val readState: () -> S,
 ) {
@@ -10,11 +9,6 @@ open class ActionEnv<S : Any, A : Any> internal constructor(
 
   internal var updatedState: S? = null
     private set
-
-  val args: A
-    get() {
-      TODO()
-    }
 
   val state: S
     get() = readState()

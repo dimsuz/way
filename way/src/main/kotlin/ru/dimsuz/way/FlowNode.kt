@@ -1,13 +1,13 @@
 package ru.dimsuz.way
 
-class FlowNode<S : Any, A : Any, R : Any> internal constructor(
+class FlowNode<S : Any, R : Any> internal constructor(
   val initial: NodeKey,
   val children: Map<NodeKey, Node>,
   val doneEventName: Event.Name,
   state: S,
-  override val eventTransitions: Map<Event.Name, (TransitionEnv<*, *, *>) -> Unit>,
-  override val onEntry: ((ActionEnv<*, *>) -> Unit)?,
-  override val onExit: ((ActionEnv<*, *>) -> Unit)?
+  override val eventTransitions: Map<Event.Name, (TransitionEnv<*, *>) -> Unit>,
+  override val onEntry: ((ActionEnv<*>) -> Unit)?,
+  override val onExit: ((ActionEnv<*>) -> Unit)?
 ) : Node {
 
   companion object {
@@ -23,7 +23,7 @@ class FlowNode<S : Any, A : Any, R : Any> internal constructor(
     _state = state
   }
 
-  fun newBuilder(): FlowNodeBuilder<S, A, R> {
+  fun newBuilder(): FlowNodeBuilder<S, R> {
     return FlowNodeBuilder(this)
   }
 }

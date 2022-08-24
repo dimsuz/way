@@ -1,12 +1,12 @@
 package ru.dimsuz.way
 
-class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) {
+class NavigationMachine<S : Any, R : Any>(val root: FlowNode<S, R>) {
 
   val initial: Path
     get() {
       return generateSequence(seed = Path(root.initial) to false) { (path, _) ->
         when (val node = root.findChild(path)) {
-          is FlowNode<*, *, *> -> {
+          is FlowNode<*, *> -> {
             (path append node.initial) to false
           }
           is ScreenNode -> path to true
@@ -19,12 +19,12 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
   fun transitionToInitial(): TransitionResult {
     val entrySet = findEntryNodes(Path(NODE_KEY_ROOT), initial)
     val actions = mutableListOf<() -> ActionResult>()
-    val actionEnv = ActionEnv<S, A>(Path(NODE_KEY_ROOT), Event(Event.Name.INIT), readState = { root.state })
+    val actionEnv = ActionEnv(Event(Event.Name.INIT), readState = { root.state })
     root.onEntry?.also { actions.add(it.bindTo(actionEnv, Path(NODE_KEY_ROOT))) }
     entrySet.forEach { nodePath ->
       val n = root.findChild(nodePath) ?: error("failed to find node at $nodePath")
       val ancestorFlowPath = root.findAncestorFlowNodePath(nodePath)
-      val env = ActionEnv<Any, Any>(Path(NODE_KEY_ROOT), Event(Event.Name.INIT), readState = { root.findAncestorFlowNodeState(ancestorFlowPath) } )
+      val env = ActionEnv(Event(Event.Name.INIT), readState = { root.findAncestorFlowNodeState(ancestorFlowPath) } )
       if (n.onEntry != null) n.onEntry?.let { actions.add(it.bindTo(env, ancestorFlowPath)) }
     }
     return TransitionResult(
@@ -46,7 +46,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       val actions = mutableListOf<() -> ActionResult>()
       exitSet.forEach { nodePath ->
         val n = root.findChild(nodePath) ?: error("failed to find node at $nodePath")
-        val env = ActionEnv<Any, Any>(path, event, readState = { root.findAncestorFlowNodeState(nodePath) })
+        val env = ActionEnv(event, readState = { root.findAncestorFlowNodeState(nodePath) })
         if (n.onExit != null) n.onExit?.let {
           val ancestorFlowPath = root.findAncestorFlowNodePath(nodePath)
           actions.add(it.bindTo(env, ancestorFlowPath))
@@ -55,7 +55,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       val entrySet = findEntryNodes(path, resolvedTargetPath)
       entrySet.forEach { nodePath ->
         val n = root.findChild(nodePath) ?: error("failed to find node at $nodePath")
-        val env = ActionEnv<Any, Any>(path, event, readState = { root.findAncestorFlowNodeState(nodePath) })
+        val env = ActionEnv(event, readState = { root.findAncestorFlowNodeState(nodePath) })
         if (n.onEntry != null) n.onEntry?.let {
           val ancestorFlowPath = root.findAncestorFlowNodePath(nodePath)
           actions.add(it.bindTo(env, ancestorFlowPath))
@@ -95,10 +95,10 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
     }
   }
 
-  private fun findAndResolveTransitionTarget(root: FlowNode<*, *, *>, event: Event, path: Path): ResolvedTransition? {
+  private fun findAndResolveTransitionTarget(root: FlowNode<*, *>, event: Event, path: Path): ResolvedTransition? {
     val nodes = root.findChildrenAlongPath(path).takeIf { it.isNotEmpty() }
       ?: error("no nodes at $path found")
-    var transition: ((TransitionEnv<*, *, *>) -> Unit)? = null
+    var transition: ((TransitionEnv<*, *>) -> Unit)? = null
     var transitionNode: Node? = null
     var transitionNodePath: Path? = null
 
@@ -125,7 +125,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
       ?.let { spec ->
         // See NOTE_FINISH_TRANSITIONS
         val transitionEnv = if (event.name.isDone()) {
-          ResultTransitionEnv<Any, A, R, Any>(event)
+          ResultTransitionEnv<Any, R, Any>(event)
         } else {
           TransitionEnv(event)
         }
@@ -170,7 +170,7 @@ class NavigationMachine<S : Any, A : Any, R : Any>(val root: FlowNode<S, A, R>) 
         //  - if resolving destination "screenB" against flow node "flowA", dropLast is not needed
         requireNotNull(transitionNodePath) { "unexpected null path for resolve. destination = $this" }
         requireNotNull(transitionNode) { "unexpected null node for resolve. destination = $this" }
-        if (transitionNode is FlowNode<*, *, *>) {
+        if (transitionNode is FlowNode<*, *>) {
           if (transitionNodePath == Path(NODE_KEY_ROOT)) {
             Path(this.key)
           } else {
@@ -189,7 +189,7 @@ private data class ResolvedTransition(
   val queuedEvents: List<Event>
 )
 
-private fun ((ActionEnv<*, *>) -> Unit).bindTo(env: ActionEnv<*, *>, parentFlowNodePath: Path): () -> ActionResult {
+private fun ((ActionEnv<*>) -> Unit).bindTo(env: ActionEnv<*>, parentFlowNodePath: Path): () -> ActionResult {
   return {
     this(env)
     ActionResult(
@@ -279,9 +279,9 @@ private fun Path.findCommonPrefix(other: Path): Path? {
 }
 
 // TODO replace this with fold + traverse and/or give it a clearer name
-private fun FlowNode<*, *, *>.fullyResolvePath(targetPath: Path): Path {
+private fun FlowNode<*, *>.fullyResolvePath(targetPath: Path): Path {
   return when (val targetNode = this.findChild(targetPath)) {
-    is FlowNode<*, *, *> -> {
+    is FlowNode<*, *> -> {
       fullyResolvePath(targetPath append targetNode.initial)
     }
     is ScreenNode -> targetPath
@@ -290,7 +290,7 @@ private fun FlowNode<*, *, *>.fullyResolvePath(targetPath: Path): Path {
   }
 }
 
-internal fun FlowNode<*, *, *>.findNode(path: Path): Node {
+internal fun FlowNode<*, *>.findNode(path: Path): Node {
   return if (path == Path(NODE_KEY_ROOT)) {
     this
   } else {
@@ -298,7 +298,7 @@ internal fun FlowNode<*, *, *>.findNode(path: Path): Node {
   }
 }
 
-internal fun FlowNode<*, *, *>.findChild(path: Path): Node? {
+internal fun FlowNode<*, *>.findChild(path: Path): Node? {
   val first = path.firstSegment
 
   val key = children.keys.find { it == first } ?: return null
@@ -306,7 +306,7 @@ internal fun FlowNode<*, *, *>.findChild(path: Path): Node? {
   val tail = path.tail
   return if (tail != null) {
     when (node) {
-      is FlowNode<*, *, *> -> node.findChild(tail)
+      is FlowNode<*, *> -> node.findChild(tail)
       is ScreenNode -> null
       is FinalNode -> null
     }
@@ -319,7 +319,7 @@ internal fun FlowNode<*, *, *>.findChild(path: Path): Node? {
  * Finds a first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
  * If node at [path] is itself a FlowNode, returns it.
  */
-private fun FlowNode<*, *, *>.findAncestorFlowNodePath(path: Path, ignoreCurrent: Boolean = false): Path {
+private fun FlowNode<*, *>.findAncestorFlowNodePath(path: Path, ignoreCurrent: Boolean = false): Path {
   if (ignoreCurrent && path == Path(NODE_KEY_ROOT)) {
     error("findAncestorFlowNodePath called on root node")
   }
@@ -327,7 +327,7 @@ private fun FlowNode<*, *, *>.findAncestorFlowNodePath(path: Path, ignoreCurrent
       path.dropLast(1) ?: Path(NODE_KEY_ROOT)
     } else path
   val nodes = findChildrenAlongPath(path1)
-  val list = nodes.dropLastWhile { it !is FlowNode<*, *, *> }
+  val list = nodes.dropLastWhile { it !is FlowNode<*, *> }
   return path1.dropLast(nodes.size - list.size) ?: Path(NODE_KEY_ROOT)
 }
 
@@ -335,12 +335,12 @@ private fun FlowNode<*, *, *>.findAncestorFlowNodePath(path: Path, ignoreCurrent
  * Finds a state of first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
  * If node at [path] is itself a FlowNode, returns its state.
  */
-internal fun FlowNode<*, *, *>.findAncestorFlowNodeState(path: Path, ignoreCurrent: Boolean = false): Any {
+internal fun FlowNode<*, *>.findAncestorFlowNodeState(path: Path, ignoreCurrent: Boolean = false): Any {
   val ancestorPath = findAncestorFlowNodePath(path, ignoreCurrent)
   return if (ancestorPath == Path(NODE_KEY_ROOT)) {
     this.state
   } else {
-    val ancestorNode = findChild(ancestorPath) as FlowNode<Any, *, *>?
+    val ancestorNode = findChild(ancestorPath) as FlowNode<Any, *>?
       ?: error("failed to find ancestor flow node for path: $path")
     ancestorNode.state
   }
@@ -350,20 +350,20 @@ internal fun FlowNode<*, *, *>.findAncestorFlowNodeState(path: Path, ignoreCurre
  * Finds a first parent node of [path] which is a FlowNode, using receiver object as the root of node hierarchy.
  * If node at [path] is itself a FlowNode, returns itself.
  */
-internal fun FlowNode<*, *, *>.findAncestorFlowNode(path: Path, ignoreCurrent: Boolean = false): FlowNode<*, *, *> {
+internal fun FlowNode<*, *>.findAncestorFlowNode(path: Path, ignoreCurrent: Boolean = false): FlowNode<*, *> {
   val ancestorPath = findAncestorFlowNodePath(path, ignoreCurrent)
   return if (ancestorPath == Path(NODE_KEY_ROOT)) {
     this
   } else {
-    val ancestorNode = findChild(ancestorPath) as FlowNode<*, *, *>?
+    val ancestorNode = findChild(ancestorPath) as FlowNode<*, *>?
       ?: error("failed to find ancestor flow node for path: $path")
     ancestorNode
   }
 }
 
-private fun FlowNode<*, *, *>.findChildrenAlongPath(path: Path): List<Node> {
+private fun FlowNode<*, *>.findChildrenAlongPath(path: Path): List<Node> {
   var p: Path? = path
-  var n: FlowNode<*, *, *>? = this
+  var n: FlowNode<*, *>? = this
 
   val nodes = mutableListOf<Node>()
 
@@ -373,7 +373,7 @@ private fun FlowNode<*, *, *>.findChildrenAlongPath(path: Path): List<Node> {
     nodes.add(node)
     p = p.tail
     n = when (node) {
-      is FlowNode<*, *, *> -> node
+      is FlowNode<*, *> -> node
       is ScreenNode -> null
       is FinalNode -> null
     }

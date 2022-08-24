@@ -326,7 +326,7 @@ class NavigationServiceTest : ShouldSpec({
         var screenNodeEntryEventCount = 0
         var screenNodeExitEventCount = 0
         val root = scheme
-          .toFlowNode<Unit, Unit, Unit>(
+          .toFlowNode<Unit, Unit>(
             Unit,
             modifyScreenNode = { builder ->
               builder
@@ -357,7 +357,7 @@ class NavigationServiceTest : ShouldSpec({
         var screenNodeEntryEventCount = 0
         var screenNodeExitEventCount = 0
         val root = scheme
-          .toFlowNode<Unit, Unit, Unit>(
+          .toFlowNode<Unit, Unit>(
             Unit,
             modifyScreenNode = { builder ->
               builder
@@ -386,7 +386,7 @@ class NavigationServiceTest : ShouldSpec({
         // Arrange
         var nodeEntryEventCount = 0
         val root = scheme
-          .toFlowNode<Unit, Unit, Unit>(
+          .toFlowNode<Unit, Unit>(
             Unit,
             modifySubFlow = { builder ->
               builder.onEntry { nodeEntryEventCount++ }
@@ -427,7 +427,7 @@ class NavigationServiceTest : ShouldSpec({
         var nodeEntryEventCount = 0
         var nodeExitEventCount = 0
         val root = scheme
-          .toFlowNode<Unit, Unit, Unit>(
+          .toFlowNode<Unit, Unit>(
             Unit,
             modifySubFlow = { builder ->
               builder
@@ -472,7 +472,7 @@ class NavigationServiceTest : ShouldSpec({
         node("a", on("EN", target = "b"), on("EX", target = "c")),
         node("b"),
       )
-        .toFlowNode<Unit, Unit, Unit>(
+        .toFlowNode<Unit, Unit>(
           initialState = Unit,
           modifyScreenNode = { builder ->
             builder.onEntry { sendEvent(Event(Name("EN"))) }
@@ -491,7 +491,7 @@ class NavigationServiceTest : ShouldSpec({
         node("b", on("EX", target = "c")),
         node("c"),
       )
-        .toFlowNode<Unit, Unit, Unit>(
+        .toFlowNode<Unit, Unit>(
           initialState = Unit,
           modifyScreenNode = { builder ->
             builder.onExit { sendEvent(Event(Name("EX"))) }
@@ -509,12 +509,12 @@ class NavigationServiceTest : ShouldSpec({
   context("flow result processing") {
     should("transition to node specified in onFinish") {
       val commands = mutableListOf<BackStack>()
-      val flowB = FlowNodeBuilder<Unit, Unit, String>()
+      val flowB = FlowNodeBuilder<Unit, String>()
           .setInitial(NodeKey("b1"))
           .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish("finishResultT") }.build() }
           .build(Unit)
           .unwrap()
-      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+      val node = FlowNodeBuilder<Unit, Unit>()
         .setInitial(NodeKey("flowB"))
         .addFlowNode<String>(NodeKey("flowB")) { builder ->
           builder
@@ -538,13 +538,13 @@ class NavigationServiceTest : ShouldSpec({
 
     should("properly finish parent flow in response to child onFinish") {
       val commands = mutableListOf<BackStack>()
-      val flowC = FlowNodeBuilder<Unit, Unit, FlowResultY>()
+      val flowC = FlowNodeBuilder<Unit, FlowResultY>()
           .setInitial(NodeKey("c1"))
           .addScreenNode(NodeKey("c1")) { sb -> sb.on(Name("T")) { finish(FlowResultY.Y2) }.build() }
           .build(Unit)
           .unwrap()
 
-      val flowB = FlowNodeBuilder<Unit, Unit, FlowResultX>()
+      val flowB = FlowNodeBuilder<Unit, FlowResultX>()
         .setInitial(NodeKey("b1"))
         .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { navigateTo(NodeKey("flowC")) }.build() }
         .addFlowNode<FlowResultY>(NodeKey("flowC")) { builder ->
@@ -561,7 +561,7 @@ class NavigationServiceTest : ShouldSpec({
         .build(Unit)
         .unwrap()
 
-      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+      val node = FlowNodeBuilder<Unit, Unit>()
         .setInitial(NodeKey("flowB"))
         .addFlowNode<FlowResultX>(NodeKey("flowB")) { builder ->
           builder
@@ -586,12 +586,12 @@ class NavigationServiceTest : ShouldSpec({
 
     should("not pass final states to the command builder") {
       val commands = mutableListOf<BackStack>()
-      val flowB = FlowNodeBuilder<Unit, Unit, String>()
+      val flowB = FlowNodeBuilder<Unit, String>()
         .setInitial(NodeKey("b1"))
         .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish("finishResultT") }.build() }
         .build(Unit)
         .unwrap()
-      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+      val node = FlowNodeBuilder<Unit, Unit>()
         .setInitial(NodeKey("flowB"))
         .addFlowNode<String>(NodeKey("flowB")) { builder ->
           builder
@@ -617,13 +617,13 @@ class NavigationServiceTest : ShouldSpec({
 
     should("process events sent from finish block in absence of navigate actions") {
       val commands = mutableListOf<BackStack>()
-      val flowB = FlowNodeBuilder<Unit, Unit, String>()
+      val flowB = FlowNodeBuilder<Unit, String>()
         .setInitial(NodeKey("b1"))
         .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish("finishResultT") }.build() }
         .build(Unit)
         .unwrap()
 
-      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+      val node = FlowNodeBuilder<Unit, Unit>()
         .setInitial(NodeKey("flowB"))
         .addFlowNode<String>(NodeKey("flowB")) { builder ->
           builder
@@ -650,7 +650,7 @@ class NavigationServiceTest : ShouldSpec({
   context("flow state management") {
     should("update state in node actions") {
       var updatedState: Any? = null
-      val service = FlowNodeBuilder<List<String>, Unit, Unit>()
+      val service = FlowNodeBuilder<List<String>, Unit>()
         .setInitial(NodeKey("a"))
         .onEntry { updateState { it.plus("flowNode_onEntry") } }
         .onExit { updateState { it.plus("flowNode_onExit") } }
@@ -707,7 +707,7 @@ private fun NodeScheme.toCollectingService(
   ).apply { if (start) start() }
 }
 
-private fun FlowNode<*, *, *>.toCollectingService(
+private fun FlowNode<*, *>.toCollectingService(
   commandSink: MutableList<BackStack>,
   start: Boolean = true,
 ): NavigationService<BackStack> {

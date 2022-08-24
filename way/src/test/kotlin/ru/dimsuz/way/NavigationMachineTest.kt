@@ -26,7 +26,7 @@ class NavigationMachineTest : ShouldSpec({
   context("initial state") {
     should("report error if initial state is missing") {
       val screen = Arb.nodeKey().next()
-      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+      val node = FlowNodeBuilder<Unit, Unit>()
         .addScreenNode(screen) { builder -> builder.build() }
         .build(Unit)
 
@@ -35,7 +35,7 @@ class NavigationMachineTest : ShouldSpec({
 
     should("switch to initial state") {
       val screen = Arb.nodeKey().next()
-      val node = FlowNodeBuilder<Unit, Unit, Unit>()
+      val node = FlowNodeBuilder<Unit, Unit>()
         .setInitial(screen)
         .addScreenNode(screen) { builder -> builder.build() }
         .build(Unit)
@@ -95,7 +95,7 @@ class NavigationMachineTest : ShouldSpec({
             )
           )
         )
-        val node = scheme.toFlowNode<Unit, Unit, Unit>(Unit)
+        val node = scheme.toFlowNode<Unit, Unit>(Unit)
         val machine = NavigationMachine(node)
 
         machine.initial shouldBe path("a.a2")
@@ -118,7 +118,7 @@ class NavigationMachineTest : ShouldSpec({
             ),
           )
         )
-        val node = scheme.toFlowNode<Unit, Unit, Unit>(Unit)
+        val node = scheme.toFlowNode<Unit, Unit>(Unit)
         val machine = NavigationMachine(node)
 
         machine.initial shouldBe path("a.a1.a1a")
@@ -166,7 +166,7 @@ class NavigationMachineTest : ShouldSpec({
       }
 
       should("transition between screens when using flow-transitions") {
-        val node = FlowNodeBuilder<Unit, Unit, Unit>()
+        val node = FlowNodeBuilder<Unit, Unit>()
           .setInitial(NodeKey("a"))
           .addScreenNode(NodeKey("a")) { builder -> builder.build() }
           .addScreenNode(NodeKey("b")) { builder -> builder.build() }
@@ -181,11 +181,11 @@ class NavigationMachineTest : ShouldSpec({
       }
 
       should("transition between screens when using flow-transitions in nested-flow") {
-        val node = FlowNodeBuilder<Unit, Unit, Unit>()
+        val node = FlowNodeBuilder<Unit, Unit>()
           .setInitial(NodeKey("flowA"))
           .addFlowNode<Unit>(NodeKey("flowA")) { flowABuilder ->
             flowABuilder.of(
-              FlowNodeBuilder<Unit, Unit, Unit>()
+              FlowNodeBuilder<Unit, Unit>()
                 .setInitial(NodeKey("a"))
                 .addScreenNode(NodeKey("a")) { builder -> builder.build() }
                 .addScreenNode(NodeKey("b")) { builder -> builder.build() }
@@ -214,7 +214,7 @@ class NavigationMachineTest : ShouldSpec({
         var screenNodeEntryEventCount = 0
         var screenNodeExitEventCount = 0
         val root = scheme
-          .toFlowNode<Unit, Unit, Unit>(
+          .toFlowNode<Unit, Unit>(
             Unit,
             modifyScreenNode = { builder ->
               builder
@@ -264,11 +264,11 @@ private fun runTests(
   scheme: NodeScheme,
   vararg expectations: TestTransition
 ) {
-  runTests(scheme.toFlowNode<Unit, Unit, Unit>(Unit), *expectations)
+  runTests(scheme.toFlowNode<Unit, Unit>(Unit), *expectations)
 }
 
 private fun runTests(
-  flowNode: FlowNode<*, *, *>,
+  flowNode: FlowNode<*, *>,
   vararg expectations: TestTransition
 ) {
   val machine = NavigationMachine(flowNode)
@@ -285,7 +285,7 @@ private fun runTests(
   )
 }
 
-private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransitionSequence(
+private fun <S : Any, R : Any> NavigationMachine<S, R>.runTransitionSequence(
   nextEventSelector: (path: Path) -> Event?,
   onTransition: (prev: Path, event: Event, next: Path) -> Unit,
   executeActions: Boolean = true,
@@ -303,7 +303,7 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
     initialResult.actions?.forEach { action ->
       val result = action()
       val node = root.findChild(result.parentFlowNodePath)
-      result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
+      result.updatedState?.let { (node as FlowNode<Any, *>).setState(it) }
     }
   }
 
@@ -325,7 +325,7 @@ private fun <S : Any, A : Any, R : Any> NavigationMachine<S, A, R>.runTransition
       transitionResult.actions?.forEach { action ->
         val result = action()
         val node = root.findChild(result.parentFlowNodePath)
-        result.updatedState?.let { (node as FlowNode<Any, *, *>).setState(it) }
+        result.updatedState?.let { (node as FlowNode<Any, *>).setState(it) }
       }
     }
     onTransition(prev, nextEvent, currentPath)

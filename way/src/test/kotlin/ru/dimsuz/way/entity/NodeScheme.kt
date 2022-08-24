@@ -134,12 +134,12 @@ fun path(s: String): Path {
   return Path(segments.first(), segments.drop(1))
 }
 
-fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(
+fun <S : Any, R : Any> NodeScheme.toFlowNode(
   initialState: S,
-  modifyScreenNode: ((ScreenNodeBuilder<*, *, *>) -> Unit)? = null,
-  modifySubFlow: ((FlowNodeBuilder<Any, Any, Any>) -> Unit)? = null,
-): FlowNode<S, A, R> {
-  return FlowNodeBuilder<S, A, R>()
+  modifyScreenNode: ((ScreenNodeBuilder<*, *>) -> Unit)? = null,
+  modifySubFlow: ((FlowNodeBuilder<Any, Any>) -> Unit)? = null,
+): FlowNode<S, R> {
+  return FlowNodeBuilder<S, R>()
     .setInitial(NodeKey(initial))
     .apply {
       nodes.forEach { (nodeKey, node) ->
@@ -169,7 +169,7 @@ fun <S : Any, A : Any, R : Any> NodeScheme.toFlowNode(
           }
           is SchemeNode.Compound -> {
             addFlowNode<Any>(NodeKey(nodeKey)) { builder ->
-              var flow = node.scheme.toFlowNode<Any, Any, Any>(Unit, modifyScreenNode, modifySubFlow)
+              var flow = node.scheme.toFlowNode<Any, Any>(Unit, modifyScreenNode, modifySubFlow)
               if (modifySubFlow != null) {
                 val flowBuilder = flow.newBuilder()
                 modifySubFlow(flowBuilder)
@@ -196,7 +196,7 @@ fun <S : Any, C : Any> NodeScheme.toService(
   return NavigationService(NavigationMachine(this.toFlowNode(initialState)), commandBuilder, onCommand)
 }
 
-fun <S : Any, C : Any> FlowNode<S, *, *>.toService(
+fun <S : Any, C : Any> FlowNode<S, *>.toService(
   commandBuilder: CommandBuilder<C>,
   onCommand: (command: C) -> Unit
 ): NavigationService<C> {
