@@ -7,6 +7,9 @@ class NavigationService<T : Any>(
 ) {
 
   private var backStack: BackStack = emptyList()
+  // last back stack which was passed to onCommand: it can be different from backStack,
+  // because it is filtered to exclude "internal", non-screen states
+  private var commandBackStack: BackStack = emptyList()
 
   fun sendEvent(event: Event) {
     if (backStack.isEmpty()) {
@@ -23,14 +26,14 @@ class NavigationService<T : Any>(
       events.addAll(result.events)
     }
     if (backStack != newBackStack) {
-      val oldBackStack = backStack
       backStack = newBackStack
       // final node states are not supposed to be rendered, they are transitory, so do not pass them to command handler
       // but it is still required to save full backstack internally so that the next transition will receive a
       // correct previous state (even when it's a 'done' final state)
-      val filteredOldBackStack = oldBackStack.removeInternalNodeEntries()
       val filteredNewBackStack = newBackStack.removeInternalNodeEntries()
-      if (filteredOldBackStack != filteredNewBackStack) {
+      if (!newBackStack.all { it.isInternalNodePath } && commandBackStack != filteredNewBackStack) {
+        val filteredOldBackStack = commandBackStack
+        commandBackStack = filteredNewBackStack
         onCommand(
           commandBuilder(
             filteredOldBackStack,
@@ -44,13 +47,16 @@ class NavigationService<T : Any>(
   }
 
   private fun BackStack.removeInternalNodeEntries(): BackStack {
-    return if (this.lastOrNull()?.lastSegment == FlowNode.DEFAULT_FINAL_NODE_KEY) {
+    return if (this.lastOrNull()?.isInternalNodePath == true) {
       this.dropLast(1)
     } else this
   }
 
+  private val Path.isInternalNodePath get() = this.lastSegment == FlowNode.DEFAULT_FINAL_NODE_KEY
+
   fun start() {
     backStack = listOf(machine.initial)
+    commandBackStack = listOf(machine.initial)
     val transitionResult = machine.transitionToInitial()
     val events = mutableListOf<Event>()
     transitionResult.actions?.forEach { action ->

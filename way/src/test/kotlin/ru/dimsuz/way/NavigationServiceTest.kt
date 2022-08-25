@@ -1,13 +1,15 @@
 package ru.dimsuz.way
 
 import com.github.michaelbull.result.unwrap
+import io.kotest.core.config.EmptyExtensionRegistry.isNotEmpty
 import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.inspectors.forAll
+import io.kotest.inspectors.shouldForAll
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldContainInOrder
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.ints.shouldBeGreaterThan
-import io.kotest.matchers.maps.shouldContainAll
-import io.kotest.matchers.maps.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.PropertyTesting
@@ -721,6 +723,60 @@ class NavigationServiceTest : ShouldSpec({
       }
     }
 
+    should("not pass empty backstack the command builder when there are only final states in it") {
+      val prevCommands = mutableListOf<BackStack>()
+      val commands = mutableListOf<BackStack>()
+      // having cascading "double-finish" here caused some bugs with backstack "purification" from done-states...
+      // i.e when inner flowB finishes and outer flowA reacts to this with finish too, then calculation went off...
+      val flowB = FlowNodeBuilder<Unit, Unit>()
+        .setInitial(NodeKey("b1"))
+        .addScreenNode(NodeKey("b1")) { sb -> sb.on(Name("T")) { finish(Unit) }.build() }
+        .build(Unit)
+        .unwrap()
+      val flowA = FlowNodeBuilder<Unit, Unit>()
+        .setInitial(NodeKey("flowB"))
+        .addFlowNode<Unit>(NodeKey("flowB")) { builder ->
+          builder.of(flowB)
+            .onFinish { finish(Unit) }
+            .build()
+            .unwrap()
+        }
+        .addScreenNode(NodeKey("x")) { builder -> builder.build() }
+        .build(Unit)
+        .unwrap()
+      val node = FlowNodeBuilder<Unit, Unit>()
+        .setInitial(NodeKey("flowA"))
+        .addFlowNode<Unit>(NodeKey("flowA")) { builder ->
+          builder
+            .of(flowA)
+            .onFinish {
+              navigateTo(NodeKey("x"))
+            }
+            .build()
+            .unwrap()
+        }
+        .addScreenNode(NodeKey("x")) { builder -> builder.build() }
+        .build(Unit)
+        .unwrap()
+
+      val service = node.toService(
+        commandBuilder = { old, new, _ -> prevCommands.add(old); commands.add(new); new },
+        onCommand = { }
+      )
+      service.start()
+
+      service.sendEvent(Event(Name("T")))
+
+      commands.shouldContainExactly(
+        listOf(path("flowA.flowB.b1")),
+        listOf(path("x")),
+      )
+      prevCommands.shouldContainExactly(
+        emptyList(),
+        listOf(path("flowA.flowB.b1")),
+      )
+    }
+
     should("process events sent from finish block in absence of navigate actions") {
       val commands = mutableListOf<BackStack>()
       val flowB = FlowNodeBuilder<Unit, String>()
@@ -735,7 +791,9 @@ class NavigationServiceTest : ShouldSpec({
           builder
             .of(flowB)
             .onFinish {
-              if (result == "finishResultT") sendEvent(Event(Name("TT"))) else error("unexpected result")
+              action {
+                if (result == "finishResultT") sendEvent(Event(Name("TT"))) else error("unexpected result")
+              }
             }
             .build()
             .unwrap()
