@@ -4,6 +4,7 @@ open class ActionEnv<S : Any> internal constructor(
   val event: Event,
   val readState: () -> S,
 ) {
+  // TODO make internal val List<>, hide mutability
   internal var queuedEvents: MutableList<Event>? = null
     private set
 

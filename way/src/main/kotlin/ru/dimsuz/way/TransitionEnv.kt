@@ -2,7 +2,9 @@ package ru.dimsuz.way
 
 open class TransitionEnv<S : Any, R : Any> internal constructor(
   val event: Event,
+  private val readState: () -> S,
 ) {
+
   internal sealed class Destination {
     data class RelativeNode(val key: NodeKey) : Destination()
     data class Path(val path: ru.dimsuz.way.Path) : Destination()
@@ -13,8 +15,12 @@ open class TransitionEnv<S : Any, R : Any> internal constructor(
 
   internal var finishResult: R? = null
 
-  internal var queuedEvents: MutableList<Event>? = null
+  // TODO make internal val List<>, hide mutability
+  internal var actions: MutableList<((ActionEnv<*>) -> Unit)>? = null
     private set
+
+  val state: S
+    get() = readState()
 
   fun navigateTo(key: NodeKey) {
     destination = Destination.RelativeNode(key)
@@ -28,10 +34,10 @@ open class TransitionEnv<S : Any, R : Any> internal constructor(
     finishResult = result
   }
 
-  fun sendEvent(event: Event) {
-    if (queuedEvents == null) {
-      queuedEvents = mutableListOf()
+  fun action(body: ActionEnv<S>.() -> Unit) {
+    if (actions == null) {
+      actions = mutableListOf()
     }
-    queuedEvents!!.add(event)
+    actions!!.add(body as (ActionEnv<*>) -> Unit)
   }
 }

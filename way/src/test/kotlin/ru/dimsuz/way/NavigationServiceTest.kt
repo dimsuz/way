@@ -552,6 +552,66 @@ class NavigationServiceTest : ShouldSpec({
     }
   }
 
+  context("transition actions") {
+    should("queue events specified in action block") {
+      val commands = mutableListOf<BackStack>()
+      val service = FlowNodeBuilder<Unit, Unit>()
+        .setInitial(NodeKey("a"))
+        .addScreenNode(NodeKey("a")) { builder ->
+          builder
+            .on(Name("T")) {
+              action {
+                sendEvent(Event(Name("Y")))
+              }
+            }
+            .build()
+        }
+        .addScreenNode(NodeKey("b")) { builder -> builder.build() }
+        .on(Name("Y")) {
+          navigateTo(NodeKey("b"))
+        }
+        .build(Unit)
+        .unwrap()
+        .toCollectingService(commands)
+
+      service.sendEvent(Event(Name("T")))
+
+      commands.last().shouldContainExactly(path("a"), path("b"))
+    }
+
+    should("execute state updates specified in action block") {
+      val commands = mutableListOf<BackStack>()
+      val service = FlowNodeBuilder<Int, Unit>()
+        .setInitial(NodeKey("a"))
+        .addScreenNode(NodeKey("a")) { builder ->
+          builder
+            .on(Name("T")) {
+              action {
+                updateState { it + 8 }
+                sendEvent(Event(Name("Y")))
+              }
+            }
+            .build()
+        }
+        .addScreenNode(NodeKey("b")) { builder -> builder.build() }
+        .addScreenNode(NodeKey("c")) { builder -> builder.build() }
+        .on(Name("Y")) {
+          if (state == 11) {
+            navigateTo(NodeKey("c"))
+          } else {
+            navigateTo(NodeKey("b"))
+          }
+        }
+        .build(initialState = 3)
+        .unwrap()
+        .toCollectingService(commands)
+
+      service.sendEvent(Event(Name("T")))
+
+      commands.last().shouldContainExactly(path("a"), path("c"))
+    }
+  }
+
   context("flow result processing") {
     should("transition to node specified in onFinish") {
       val commands = mutableListOf<BackStack>()
