@@ -25,23 +25,21 @@ class NavigationService<T : Any>(
       result.updatedState?.let { (node as FlowNode<Any, *>).setState(it) }
       events.addAll(result.events)
     }
-    if (backStack != newBackStack) {
-      backStack = newBackStack
-      // final node states are not supposed to be rendered, they are transitory, so do not pass them to command handler
-      // but it is still required to save full backstack internally so that the next transition will receive a
-      // correct previous state (even when it's a 'done' final state)
-      val filteredNewBackStack = newBackStack.removeInternalNodeEntries()
-      if (!newBackStack.all { it.isInternalNodePath } && commandBackStack != filteredNewBackStack) {
-        val filteredOldBackStack = commandBackStack
-        commandBackStack = filteredNewBackStack
-        onCommand(
-          commandBuilder(
-            filteredOldBackStack,
-            filteredNewBackStack,
-            machine.root.findAncestorFlowNodeState(transitionResult.path)
-          )
+    backStack = newBackStack
+    // final node states are not supposed to be rendered, they are transitory, so do not pass them to command handler
+    // but it is still required to save full backstack internally so that the next transition will receive a
+    // correct previous state (even when it's a 'done' final state)
+    val filteredNewBackStack = newBackStack.removeInternalNodeEntries()
+    if (!newBackStack.all { it.isInternalNodePath }) {
+      val filteredOldBackStack = commandBackStack
+      commandBackStack = filteredNewBackStack
+      onCommand(
+        commandBuilder(
+          filteredOldBackStack,
+          filteredNewBackStack,
+          machine.root.findAncestorFlowNodeState(transitionResult.path)
         )
-      }
+      )
     }
     events.forEach { sendEvent(it) }
   }

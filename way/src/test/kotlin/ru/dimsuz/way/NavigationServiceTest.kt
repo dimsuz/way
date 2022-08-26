@@ -768,11 +768,13 @@ class NavigationServiceTest : ShouldSpec({
       service.sendEvent(Event(Name("T")))
 
       commands.shouldContainExactly(
-        listOf(path("flowA.flowB.b1")),
-        listOf(path("x")),
+        listOf(path("flowA.flowB.b1")), // initial
+        listOf(path("flowA.flowB.b1")), // after first done
+        listOf(path("x")), // after second done
       )
       prevCommands.shouldContainExactly(
         emptyList(),
+        listOf(path("flowA.flowB.b1")),
         listOf(path("flowA.flowB.b1")),
       )
     }
@@ -856,6 +858,34 @@ class NavigationServiceTest : ShouldSpec({
 
     should("update independent state in sub flows") {
       TODO()
+    }
+
+    should("invoke command builder if backstack is the same but state changed") {
+      var updatedState: Any? = null
+      val service = FlowNodeBuilder<List<String>, Unit>()
+        .setInitial(NodeKey("a"))
+        .addScreenNode(NodeKey("a")) { builder ->
+          builder
+            .on(Name("EN")) {
+              action {
+                updateState { it.plus("a_event") }
+              }
+            }
+            .build()
+        }
+        .build(emptyList())
+        .unwrap()
+        .toService(
+          commandBuilder = { _, _, s -> updatedState = s },
+          onCommand = { }
+        ).apply {
+          start()
+        }
+
+      service.sendEvent(Event(Name("EN")))
+      service.sendEvent(Event(Name("EN")))
+
+      (updatedState as List<String>) shouldContainExactly listOf("a_event", "a_event")
     }
   }
 })
